@@ -68,12 +68,12 @@ class Network(commands.Cog, name="Network"):
 
     def __init__(self, bot: Any) -> None:
         self.bot = bot
-        self.http = bot.http
+        self.net = bot.net
 
     # ── shared panels ────────────────────────────────────────────────────
 
     async def _ip_intel(self, target: str) -> dict[str, Any]:
-        data = await self.http.get_json(f"https://ipwho.is/{target}", cache_ttl=1800)
+        data = await self.net.get_json(f"https://ipwho.is/{target}", cache_ttl=1800)
         if not isinstance(data, dict) or data.get("success") is False:
             raise NotFound(f"`{target}` has no public geolocation record.")
         return data
@@ -147,7 +147,7 @@ class Network(commands.Cog, name="Network"):
     async def _ptr_panel(self, embed: Intel, address: str) -> None:
         try:
             parsed = parse_ip(address)
-            names = await dns.ptr(self.http, parsed.reverse_pointer)
+            names = await dns.ptr(self.net, parsed.reverse_pointer)
         except (ValueError, IntelError):
             names = []
         if not names:
@@ -156,7 +156,7 @@ class Network(commands.Cog, name="Network"):
         confirmed = []
         for name in names[:3]:
             try:
-                resolved = await dns.address_records(self.http, name)
+                resolved = await dns.address_records(self.net, name)
             except IntelError:
                 resolved = {}
             values = (resolved.get("A") or []) + (resolved.get("AAAA") or [])
@@ -169,7 +169,7 @@ class Network(commands.Cog, name="Network"):
         )
 
     async def _ripestat(self, call: str, resource: str) -> dict[str, Any]:
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             f"https://stat.ripe.net/data/{call}/data.json",
             params={"resource": resource},
             cache_ttl=3600,
@@ -187,7 +187,7 @@ class Network(commands.Cog, name="Network"):
         current = host
         for _ in range(6):
             try:
-                records = await dns.values(self.http, current, "CNAME")
+                records = await dns.values(self.net, current, "CNAME")
             except (NotFound, SourceUnavailable):
                 break
             if not records:
@@ -317,7 +317,7 @@ class Network(commands.Cog, name="Network"):
     )
     async def myip(self, ctx: commands.Context) -> None:
         await ack(ctx)
-        payload = await self.http.get_json("https://api.ipify.org?format=json", cache_ttl=60)
+        payload = await self.net.get_json("https://api.ipify.org?format=json", cache_ttl=60)
         address = payload.get("ip")
         if not address:
             raise IntelError("The egress resolver returned no address.")
@@ -552,7 +552,7 @@ class Network(commands.Cog, name="Network"):
         first_octet = int(digits[:2], 16)
         vendor = "unknown"
         try:
-            vendor = (await self.http.get_text(f"https://api.macvendors.com/{':'.join(digits[i:i+2] for i in range(0, 12, 2))}", cache_ttl=86_400)).strip()
+            vendor = (await self.net.get_text(f"https://api.macvendors.com/{':'.join(digits[i:i+2] for i in range(0, 12, 2))}", cache_ttl=86_400)).strip()
         except IntelError:
             vendor = "not present in the public OUI registry"
 
@@ -818,7 +818,7 @@ class Network(commands.Cog, name="Network"):
         if not is_ip(raw):
             raise UsageError("Supply a literal IP address.")
         address = parse_ip(raw)
-        names = await dns.ptr(self.http, address.reverse_pointer)
+        names = await dns.ptr(self.net, address.reverse_pointer)
         embed = Intel(
             category="network",
             command="rdns",
@@ -832,7 +832,7 @@ class Network(commands.Cog, name="Network"):
             checks = []
             for name in names[:5]:
                 try:
-                    records = await dns.address_records(self.http, name)
+                    records = await dns.address_records(self.net, name)
                 except IntelError:
                     records = {}
                 values = (records.get("A") or []) + (records.get("AAAA") or [])
@@ -941,7 +941,7 @@ class Network(commands.Cog, name="Network"):
     async def headers(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         url = ensure_url(require(target, "URL or host", example=".headers example.com"))
-        response = await self.http.request("GET", url, cache=False, allow_redirects=True, timeout=20)
+        response = await self.net.request("GET", url, cache=False, allow_redirects=True, timeout=20)
         embed = Intel(
             category="network",
             command="headers",
@@ -993,7 +993,7 @@ class Network(commands.Cog, name="Network"):
     async def httpstatus(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         url = ensure_url(require(target, "URL", example=".httpstatus https://example.com"))
-        response = await self.http.request("GET", url, cache=False, allow_redirects=True, timeout=20)
+        response = await self.net.request("GET", url, cache=False, allow_redirects=True, timeout=20)
         embed = Intel(
             category="network",
             command="httpstatus",
@@ -1153,7 +1153,7 @@ class Network(commands.Cog, name="Network"):
         waf_hits: list[str] = []
         status = None
         try:
-            response = await self.http.get(f"https://{host}", cache=False, allow_redirects=True, timeout=15)
+            response = await self.net.get(f"https://{host}", cache=False, allow_redirects=True, timeout=15)
             headers = response.headers
             status = response.status
             for signature in WAF_SIGNATURES:
@@ -1224,7 +1224,7 @@ class Network(commands.Cog, name="Network"):
         for zone, name, note in DNSBL_ZONES:
             query_name = f"{reversed_ip}.{zone}"
             try:
-                records = await dns.values(self.http, query_name, "A")
+                records = await dns.values(self.net, query_name, "A")
             except NotFound:
                 results.append((False, name, "not listed"))
                 continue
@@ -1278,7 +1278,7 @@ class Network(commands.Cog, name="Network"):
         raw = require(target, "IP address", example=".whoisip 1.1.1.1")
         if not is_ip(raw):
             raise UsageError("Supply a literal IP address.")
-        payload = await self.http.get_json(f"https://rdap.org/ip/{raw}", cache_ttl=3600)
+        payload = await self.net.get_json(f"https://rdap.org/ip/{raw}", cache_ttl=3600)
         events = {event.get("eventAction"): event.get("eventDate") for event in payload.get("events") or []}
         embed = Intel(
             category="network",

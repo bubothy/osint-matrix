@@ -88,7 +88,7 @@ class OsintBot(commands.Bot):
             allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True, replied_user=False),
         )
         self.store: Store
-        self.http: HTTPClient
+        self.net: HTTPClient
         self.launch_time: float = time.time()
         self.prefix_cache: dict[int, str] = {}
         self.command_errors: int = 0
@@ -97,8 +97,8 @@ class OsintBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         self.store = Store(DATA_DIR / "osint.sqlite3")
-        self.http = HTTPClient(settings.http_timeout, settings.cache_ttl)
-        await self.http.start()
+        self.net = HTTPClient(settings.http_timeout, settings.cache_ttl)
+        await self.net.start()
         self.launch_time = time.time()
         self.prefix_cache = await self.store.prefixes()
 
@@ -121,7 +121,7 @@ class OsintBot(commands.Bot):
 
     async def close(self) -> None:
         try:
-            await self.http.close()
+            await self.net.close()
         except Exception:  # noqa: BLE001 - shutdown must not raise
             pass
         try:

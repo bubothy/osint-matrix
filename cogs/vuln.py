@@ -24,7 +24,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
 
     def __init__(self, bot: Any) -> None:
         self.bot = bot
-        self.http = bot.http
+        self.net = bot.net
 
     # ── helpers ──────────────────────────────────────────────────────────
 
@@ -35,7 +35,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
         return headers
 
     async def _nvd(self, params: dict[str, Any]) -> dict[str, Any]:
-        return await self.http.get_json(
+        return await self.net.get_json(
             "https://services.nvd.nist.gov/rest/json/cves/2.0",
             params=params,
             headers=self._nvd_headers(),
@@ -71,7 +71,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
 
     async def _epss(self, cve: str) -> dict[str, Any] | None:
         try:
-            payload = await self.http.get_json(
+            payload = await self.net.get_json(
                 "https://api.first.org/data/v1/epss", params={"cve": cve}, cache_ttl=3600, timeout=15
             )
         except IntelError:
@@ -80,7 +80,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
         return data[0] if data else None
 
     async def _kev(self) -> dict[str, dict[str, Any]]:
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
             cache_ttl=21_600,
             timeout=35,
@@ -393,7 +393,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
         cve = require(target, "CVE ID", example=".epss CVE-2021-44228").strip().upper()
         if not __import__("re").fullmatch(CVE_RE, cve):
             raise UsageError("CVE IDs look like `CVE-2021-44228`.")
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             "https://api.first.org/data/v1/epss", params={"cve": cve}, cache_ttl=3600, expect=False
         )
         data = payload.get("data") or []
@@ -446,7 +446,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
         raw = require(target, "CWE number", example=".cwe 79").strip().upper().replace("CWE-", "")
         if not raw.isdigit():
             raise UsageError("Supply a numeric CWE, e.g. `79`.")
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             f"https://cwe-api.mitre.org/api/v1/cwe/weakness/{raw}", cache_ttl=86_400, expect=False
         )
         if not payload or not payload.get("WeaknessID"):
@@ -564,7 +564,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
                 "MalwareBazaar sample metadata and ThreatFox IOC correlation.",
                 "https://auth.abuse.ch/",
             )
-        response = await self.http.request(
+        response = await self.net.request(
             "POST",
             "https://mb-api.abuse.ch/api/v1/",
             data={"query": "get_info", "hash": digest},
@@ -661,7 +661,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
         headers = {"User-Agent": "OSINT-MATRIX/1.0"}
         if settings.has("URLSCAN_API_KEY"):
             headers["api-key"] = settings.key("URLSCAN_API_KEY")
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             "https://urlscan.io/api/v1/search/",
             params={"q": query, "size": 20},
             headers=headers,
@@ -746,7 +746,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
             kind, value = "urls", base64.urlsafe_b64encode(indicator.encode()).decode().rstrip("=")
         else:
             kind, value = "domains", indicator
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             f"https://www.virustotal.com/api/v3/{kind}/{quote(value, safe='')}",
             headers={"x-apikey": key, "Accept": "application/json"},
             cache_ttl=1800,
@@ -814,7 +814,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
                 "Exposed-service and banner intelligence for a host.",
                 "https://account.shodan.io",
             )
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             f"https://api.shodan.io/shodan/host/{quote(address)}",
             params={"key": key},
             cache_ttl=1800,
@@ -886,7 +886,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
                 "Abuse confidence score and report history for an IP address.",
                 "https://www.abuseipdb.com/account/api",
             )
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             "https://api.abuseipdb.com/api/v2/check",
             params={"ipAddress": address, "maxAgeInDays": 365},
             headers={"Key": key, "Accept": "application/json"},

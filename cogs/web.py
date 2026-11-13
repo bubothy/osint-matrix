@@ -86,7 +86,7 @@ class Web(commands.Cog, name="Web"):
 
     def __init__(self, bot: Any) -> None:
         self.bot = bot
-        self.http = bot.http
+        self.net = bot.net
 
     # ── helpers ──────────────────────────────────────────────────────────
 
@@ -100,7 +100,7 @@ class Web(commands.Cog, name="Web"):
         return url
 
     async def _page(self, url: str) -> Any:
-        response = await self.http.get(url, cache_ttl=120, timeout=20, max_redirects=10)
+        response = await self.net.get(url, cache_ttl=120, timeout=20, max_redirects=10)
         if not response.ok:
             raise SourceUnavailable(
                 f"`{urlsplit(url).netloc}` answered HTTP {response.status}.",
@@ -129,7 +129,7 @@ class Web(commands.Cog, name="Web"):
         hops: list[tuple[int, str, str]] = []
         current = url
         for _ in range(limit):
-            response = await self.http.request(
+            response = await self.net.request(
                 "GET", current, cache=False, allow_redirects=False, timeout=15
             )
             location = response.headers.get("location", "")
@@ -160,7 +160,7 @@ class Web(commands.Cog, name="Web"):
         host = parsed.hostname or ""
         redirects = 0
         try:
-            response = await self.http.get(url, cache=False, allow_redirects=True, timeout=20)
+            response = await self.net.get(url, cache=False, allow_redirects=True, timeout=20)
             status, final, headers = response.status, response.url, response.headers
             elapsed, payload = response.elapsed_ms, response.bytes_read
             redirects = len(response.history)
@@ -378,7 +378,7 @@ class Web(commands.Cog, name="Web"):
     async def secheaders(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         url = self._url(target, ".secheaders example.com")
-        response = await self.http.get(url, cache_ttl=60, timeout=20)
+        response = await self.net.get(url, cache_ttl=60, timeout=20)
         headers = response.headers
         earned = 0.0
         total = sum(rule["weight"] for rule in SECURITY_HEADERS)
@@ -464,7 +464,7 @@ class Web(commands.Cog, name="Web"):
     async def robots_cmd(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         host = normalize_host(require(target, "host", example=".robots example.com"))
-        response = await self.http.get(f"https://{host}/robots.txt", cache_ttl=300, timeout=15)
+        response = await self.net.get(f"https://{host}/robots.txt", cache_ttl=300, timeout=15)
         if not response.ok:
             raise NotFound(f"`{host}` does not publish robots.txt (HTTP {response.status}).")
         text = response.text
@@ -548,7 +548,7 @@ class Web(commands.Cog, name="Web"):
         location = path or "/sitemap.xml"
         if not location.startswith("/"):
             location = "/" + location
-        response = await self.http.get(f"https://{host}{location}", cache_ttl=600, timeout=20)
+        response = await self.net.get(f"https://{host}{location}", cache_ttl=600, timeout=20)
         if not response.ok:
             raise NotFound(f"`{host}{location}` answered HTTP {response.status}.")
         locs = re.findall(r"<loc>\s*(.*?)\s*</loc>", response.text, re.IGNORECASE | re.DOTALL)
@@ -595,7 +595,7 @@ class Web(commands.Cog, name="Web"):
         host = normalize_host(require(target, "host", example=".securitytxt example.com"))
         found = None
         for path in ("/.well-known/security.txt", "/security.txt"):
-            response = await self.http.get(f"https://{host}{path}", cache_ttl=600, timeout=15)
+            response = await self.net.get(f"https://{host}{path}", cache_ttl=600, timeout=15)
             if response.ok and "contact" in response.text.lower():
                 found = (path, response)
                 break
@@ -653,7 +653,7 @@ class Web(commands.Cog, name="Web"):
     async def cookies_cmd(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         url = self._url(target, ".cookies example.com")
-        response = await self.http.get(url, cache_ttl=60, timeout=20)
+        response = await self.net.get(url, cache_ttl=60, timeout=20)
         if not response.set_cookies:
             raise NotFound("The response set no cookies (or the host rejects non-browser clients).")
         rows: list[tuple[bool | None, str, str]] = []
@@ -700,10 +700,10 @@ class Web(commands.Cog, name="Web"):
         await ack(ctx)
         url = self._url(target, ".cors https://api.example.com")
         probe_origin = "https://osint-matrix.invalid"
-        evil = await self.http.request(
+        evil = await self.net.request(
             "GET", url, headers={"Origin": probe_origin}, cache=False, timeout=15
         )
-        null = await self.http.request(
+        null = await self.net.request(
             "GET", url, headers={"Origin": "null"}, cache=False, timeout=15
         )
         allow = evil.headers.get("access-control-allow-origin", "")
@@ -755,7 +755,7 @@ class Web(commands.Cog, name="Web"):
     async def methods(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         url = self._url(target, ".methods example.com")
-        response = await self.http.options(url, cache_ttl=60, timeout=15)
+        response = await self.net.options(url, cache_ttl=60, timeout=15)
         allowed = [method.strip().upper() for method in response.headers.get("allow", "").split(",") if method.strip()]
         if not allowed:
             allowed = [method.strip().upper() for method in response.headers.get("access-control-allow-methods", "").split(",") if method.strip()]
@@ -800,7 +800,7 @@ class Web(commands.Cog, name="Web"):
     async def favicon(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         host = normalize_host(require(target, "host", example=".favicon example.com"))
-        response = await self.http.get(f"https://{host}/favicon.ico", cache_ttl=600, timeout=15)
+        response = await self.net.get(f"https://{host}/favicon.ico", cache_ttl=600, timeout=15)
         if not response.ok or not response.text:
             raise NotFound(f"`{host}` returned no usable favicon (HTTP {response.status}).")
         raw = response.body or response.text.encode("utf-8", "ignore")
@@ -852,7 +852,7 @@ class Web(commands.Cog, name="Web"):
     async def waf(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         host = normalize_host(require(target, "host", example=".waf example.com"))
-        response = await self.http.get(f"https://{host}/", cache_ttl=60, timeout=20)
+        response = await self.net.get(f"https://{host}/", cache_ttl=60, timeout=20)
         headers = response.headers
         body = response.text.lower()
         hits: list[str] = []

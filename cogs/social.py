@@ -33,7 +33,7 @@ class Social(commands.Cog, name="Social"):
 
     def __init__(self, bot: Any) -> None:
         self.bot = bot
-        self.http = bot.http
+        self.net = bot.net
 
     def _github_headers(self) -> dict[str, str]:
         headers = {
@@ -68,7 +68,7 @@ class Social(commands.Cog, name="Social"):
         await ack(ctx)
         user = self._handle(target, "GitHub username", ".github torvalds")
         try:
-            profile = await self.http.get_json(
+            profile = await self.net.get_json(
                 f"https://api.github.com/users/{quote(user)}",
                 headers=self._github_headers(),
                 cache_ttl=600,
@@ -82,7 +82,7 @@ class Social(commands.Cog, name="Social"):
             raise NotFound(f"GitHub has no user named `{user}`.") from None
         repos: list[dict[str, Any]] = []
         try:
-            repos = await self.http.get_json(
+            repos = await self.net.get_json(
                 f"https://api.github.com/users/{quote(user)}/repos?per_page=100&sort=updated",
                 headers=self._github_headers(),
                 cache_ttl=600,
@@ -171,7 +171,7 @@ class Social(commands.Cog, name="Social"):
         await ack(ctx)
         user = self._handle(target, "GitHub username", ".ghrepos torvalds")
         try:
-            repos = await self.http.get_json(
+            repos = await self.net.get_json(
                 f"https://api.github.com/users/{quote(user)}/repos?per_page=100&sort=updated",
                 headers=self._github_headers(),
                 cache_ttl=600,
@@ -236,7 +236,7 @@ class Social(commands.Cog, name="Social"):
     async def gitlab(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         user = self._handle(target, "GitLab username", ".gitlab gitlab-bot")
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             "https://gitlab.com/api/v4/users",
             params={"username": user},
             cache_ttl=600,
@@ -296,7 +296,7 @@ class Social(commands.Cog, name="Social"):
         await ack(ctx)
         user = self._handle(target, "Reddit username", ".reddit spez")
         try:
-            payload = await self.http.get_json(
+            payload = await self.net.get_json(
                 f"https://www.reddit.com/user/{quote(user)}/about.json",
                 headers={"User-Agent": "OSINT-MATRIX/1.0 (private research)"},
                 cache_ttl=600,
@@ -369,7 +369,7 @@ class Social(commands.Cog, name="Social"):
         await ack(ctx)
         name = self._handle(target, "subreddit", ".redditsub osint")
         try:
-            payload = await self.http.get_json(
+            payload = await self.net.get_json(
                 f"https://www.reddit.com/r/{quote(name)}/about.json",
                 headers={"User-Agent": "OSINT-MATRIX/1.0 (private research)"},
                 cache_ttl=600,
@@ -429,7 +429,7 @@ class Social(commands.Cog, name="Social"):
     async def hackernews(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         user = self._handle(target, "Hacker News username", ".hackernews pg")
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             f"https://hacker-news.firebaseio.com/v0/user/{quote(user)}.json",
             cache_ttl=600,
             expect=False,
@@ -473,7 +473,7 @@ class Social(commands.Cog, name="Social"):
         await ack(ctx)
         user = self._handle(target, "dev.to username", ".devto ben")
         try:
-            payload = await self.http.get_json(
+            payload = await self.net.get_json(
                 "https://dev.to/api/users/by_username",
                 params={"url": user},
                 cache_ttl=600,
@@ -529,7 +529,7 @@ class Social(commands.Cog, name="Social"):
         raw = require(target, "Stack Overflow user ID", example=".stackoverflow 1").strip()
         if not raw.isdigit():
             raise UsageError("Stack Exchange exposes users by numeric ID, not username.")
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             f"https://api.stackexchange.com/2.3/users/{raw}",
             params={"site": "stackoverflow", "filter": "default"},
             cache_ttl=600,
@@ -595,7 +595,7 @@ class Social(commands.Cog, name="Social"):
     async def npm(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         user = self._handle(target, "npm username", ".npm sindresorhus")
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             "https://registry.npmjs.org/-/v1/search",
             params={"text": f"maintainer:{user}", "size": 25},
             cache_ttl=600,
@@ -650,7 +650,7 @@ class Social(commands.Cog, name="Social"):
         if not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", package):
             raise UsageError("That is not a valid package name.")
         try:
-            payload = await self.http.get_json(f"https://pypi.org/pypi/{quote(package)}/json", cache_ttl=600)
+            payload = await self.net.get_json(f"https://pypi.org/pypi/{quote(package)}/json", cache_ttl=600)
         except IntelError:
             raise NotFound(f"PyPI has no package named `{package}`.") from None
         info = payload.get("info") or {}
@@ -716,7 +716,7 @@ class Social(commands.Cog, name="Social"):
         await ack(ctx)
         raw = require(target, "Steam vanity or SteamID64", example=".steam gabe_logan").strip()
         url = f"https://steamcommunity.com/profiles/{raw}/?xml=1" if raw.isdigit() else f"https://steamcommunity.com/id/{quote(raw)}/?xml=1"
-        response = await self.http.get(url, cache_ttl=600, timeout=15)
+        response = await self.net.get(url, cache_ttl=600, timeout=15)
         if not response.ok:
             raise NotFound(f"Steam returned HTTP {response.status} for `{raw}`.")
         try:
@@ -798,7 +798,7 @@ class Social(commands.Cog, name="Social"):
         await ack(ctx)
         name = self._handle(target, "Minecraft username", ".minecraft Notch")
         try:
-            profile = await self.http.get_json(
+            profile = await self.net.get_json(
                 f"https://api.mojang.com/users/profiles/minecraft/{quote(name)}", cache_ttl=900
             )
         except IntelError:
@@ -807,7 +807,7 @@ class Social(commands.Cog, name="Social"):
         uuid_value = dashed_uuid(raw_uuid)
         session: dict[str, Any] = {}
         try:
-            session = await self.http.get_json(
+            session = await self.net.get_json(
                 f"https://sessionserver.mojang.com/session/minecraft/profile/{raw_uuid}", cache_ttl=900
             )
         except IntelError:
@@ -877,7 +877,7 @@ class Social(commands.Cog, name="Social"):
     async def roblox(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         user = self._handle(target, "Roblox username", ".roblox Roblox")
-        search = await self.http.request(
+        search = await self.net.request(
             "POST",
             "https://users.roblox.com/v1/usernames/users",
             json_body={"usernames": [user], "excludeBannedUsers": False},
@@ -892,7 +892,7 @@ class Social(commands.Cog, name="Social"):
         user_id = entry.get("id")
         detail: dict[str, Any] = {}
         try:
-            detail = await self.http.get_json(f"https://users.roblox.com/v1/users/{user_id}", cache_ttl=600)
+            detail = await self.net.get_json(f"https://users.roblox.com/v1/users/{user_id}", cache_ttl=600)
         except IntelError:
             detail = entry
         embed = Intel(
@@ -941,7 +941,7 @@ class Social(commands.Cog, name="Social"):
     async def telegram(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         handle = self._handle(target, "Telegram handle", ".telegram telegram")
-        response = await self.http.get(f"https://t.me/{quote(handle)}", cache_ttl=600, timeout=15)
+        response = await self.net.get(f"https://t.me/{quote(handle)}", cache_ttl=600, timeout=15)
         if not response.ok:
             raise NotFound(f"Telegram returned HTTP {response.status} for `@{handle}`.")
         page = response.text
@@ -993,7 +993,7 @@ class Social(commands.Cog, name="Social"):
     async def keybase(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         user = self._handle(target, "Keybase username", ".keybase max")
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             "https://keybase.io/_/api/1.0/user/lookup.json",
             params={"username": user, "fields": "basics,profile,proofs,devices"},
             cache_ttl=600,
@@ -1058,7 +1058,7 @@ class Social(commands.Cog, name="Social"):
         user, _, instance = raw.partition("@")
         if not re.fullmatch(r"[A-Za-z0-9.-]+", instance):
             raise UsageError("That instance name is not valid.")
-        payload = await self.http.get_json(
+        payload = await self.net.get_json(
             f"https://{instance}/api/v1/accounts/lookup",
             params={"acct": user},
             cache_ttl=600,
@@ -1112,7 +1112,7 @@ class Social(commands.Cog, name="Social"):
         raw = require(target, "Bluesky handle", example=".bluesky bsky.app").strip().lstrip("@")
         actor = raw
         if not raw.startswith("did:"):
-            resolved = await self.http.get_json(
+            resolved = await self.net.get_json(
                 "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle",
                 params={"handle": raw},
                 cache_ttl=600,
@@ -1120,7 +1120,7 @@ class Social(commands.Cog, name="Social"):
             )
             actor = (resolved or {}).get("did") or raw
         try:
-            payload = await self.http.get_json(
+            payload = await self.net.get_json(
                 "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile",
                 params={"actor": actor},
                 cache_ttl=600,

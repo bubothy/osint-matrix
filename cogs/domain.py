@@ -114,7 +114,7 @@ class Domain(commands.Cog, name="Domain"):
 
     def __init__(self, bot: Any) -> None:
         self.bot = bot
-        self.http = bot.http
+        self.net = bot.net
 
     # ── helpers ──────────────────────────────────────────────────────────
 
@@ -128,12 +128,12 @@ class Domain(commands.Cog, name="Domain"):
 
     async def _safe(self, name: str, rrtype: str) -> list[str]:
         try:
-            return await dns.values(self.http, name, rrtype)
+            return await dns.values(self.net, name, rrtype)
         except (NotFound, SourceUnavailable):
             return []
 
     async def _crtsh(self, domain: str) -> list[dict[str, Any]]:
-        response = await self.http.request(
+        response = await self.net.request(
             "GET",
             "https://crt.sh/",
             params={"q": f"%.{domain}", "output": "json"},
@@ -176,7 +176,7 @@ class Domain(commands.Cog, name="Domain"):
             table[rrtype] = [] if isinstance(result, BaseException) else result
         if not any(table.values()):
             raise NotFound(f"`{domain}` resolves to nothing (NXDOMAIN or empty zone).")
-        soa = await dns.soa(self.http, domain)
+        soa = await dns.soa(self.net, domain)
         embed = Intel(
             category="domain",
             command="dns",
@@ -231,7 +231,7 @@ class Domain(commands.Cog, name="Domain"):
         await ack(ctx)
         domain = self._target(target, ".a example.com")
         try:
-            answers = await dns.answers(self.http, domain, "A")
+            answers = await dns.answers(self.net, domain, "A")
         except NotFound:
             raise NotFound(f"`{domain}` has no A record.") from None
         if not answers:
@@ -282,7 +282,7 @@ class Domain(commands.Cog, name="Domain"):
         try:
             from core.utils import parse_ip
 
-            names = await dns.ptr(self.http, parse_ip(address).reverse_pointer)
+            names = await dns.ptr(self.net, parse_ip(address).reverse_pointer)
             return ", ".join(names)
         except (ValueError, IntelError):
             return ""
@@ -300,7 +300,7 @@ class Domain(commands.Cog, name="Domain"):
         await ack(ctx)
         domain = self._target(target, ".aaaa example.com")
         try:
-            answers = await dns.answers(self.http, domain, "AAAA")
+            answers = await dns.answers(self.net, domain, "AAAA")
         except NotFound:
             raise NotFound(f"`{domain}` has no AAAA record — it is IPv4-only.") from None
         if not answers:
@@ -349,7 +349,7 @@ class Domain(commands.Cog, name="Domain"):
     async def mx(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         domain = self._target(target, ".mx example.com")
-        records = await dns.mx(self.http, domain)
+        records = await dns.mx(self.net, domain)
         if not records:
             raise NotFound(f"`{domain}` publishes no MX records — it cannot receive mail.")
         embed = Intel(
@@ -371,7 +371,7 @@ class Domain(commands.Cog, name="Domain"):
                 "Detected": providers,
                 "Exchangers": len(records),
                 "Backup only": len(records) > 1,
-                "SPF present": any(record.lower().startswith("v=spf1") for record in await dns.txt(self.http, domain)),
+                "SPF present": any(record.lower().startswith("v=spf1") for record in await dns.txt(self.net, domain)),
             },
             inline=True,
         )
@@ -402,7 +402,7 @@ class Domain(commands.Cog, name="Domain"):
     async def txt(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         domain = self._target(target, ".txt example.com")
-        records = await dns.txt(self.http, domain)
+        records = await dns.txt(self.net, domain)
         if not records:
             raise NotFound(f"`{domain}` publishes no TXT records.")
         buckets: dict[str, list[str]] = {}
@@ -452,12 +452,12 @@ class Domain(commands.Cog, name="Domain"):
     async def ns(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         domain = self._target(target, ".ns example.com")
-        servers = await dns.ns(self.http, domain)
+        servers = await dns.ns(self.net, domain)
         if not servers:
             raise NotFound(f"`{domain}` publishes no NS records.")
         glue: list[str] = []
         for server in servers[:8]:
-            records = await dns.address_records(self.http, server)
+            records = await dns.address_records(self.net, server)
             addresses = (records.get("A") or []) + (records.get("AAAA") or [])
             glue.append(f"{server} → {', '.join(addresses) or 'no glue visible'}")
         embed = Intel(
@@ -512,7 +512,7 @@ class Domain(commands.Cog, name="Domain"):
             chain.append(current)
         if len(chain) == 1:
             raise NotFound(f"`{domain}` has no CNAME record.")
-        addresses = await dns.address_records(self.http, current)
+        addresses = await dns.address_records(self.net, current)
         embed = Intel(
             category="domain",
             command="cname",
@@ -555,7 +555,7 @@ class Domain(commands.Cog, name="Domain"):
     async def soa(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         domain = self._target(target, ".soa example.com")
-        data = await dns.soa(self.http, domain)
+        data = await dns.soa(self.net, domain)
         if not data:
             raise NotFound(f"`{domain}` returned no SOA record.")
         embed = Intel(
@@ -609,7 +609,7 @@ class Domain(commands.Cog, name="Domain"):
     async def caa(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         domain = self._target(target, ".caa example.com")
-        records = await dns.caa(self.http, domain)
+        records = await dns.caa(self.net, domain)
         embed = Intel(
             category="domain",
             command="caa",
@@ -658,7 +658,7 @@ class Domain(commands.Cog, name="Domain"):
     async def srv(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         name = normalize_domain(require(target, "service record", example=".srv _sip._tcp.example.com"))
-        records = await dns.srv(self.http, name)
+        records = await dns.srv(self.net, name)
         if not records:
             raise NotFound(f"`{name}` has no SRV record.")
         embed = Intel(
@@ -705,7 +705,7 @@ class Domain(commands.Cog, name="Domain"):
     async def spf(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         domain = self._target(target, ".spf example.com")
-        records = [record for record in await dns.txt(self.http, domain) if record.lower().startswith("v=spf1")]
+        records = [record for record in await dns.txt(self.net, domain) if record.lower().startswith("v=spf1")]
         if not records:
             raise NotFound(f"`{domain}` publishes no SPF record — anyone can spoof its sender domain.")
         if len(records) > 1:
@@ -931,8 +931,8 @@ class Domain(commands.Cog, name="Domain"):
     async def dnssec(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         domain = self._target(target, ".dnssec example.com")
-        ds_records = await dns.ds(self.http, domain)
-        keys = await dns.dnskey(self.http, domain)
+        ds_records = await dns.ds(self.net, domain)
+        keys = await dns.dnskey(self.net, domain)
         embed = Intel(
             category="domain",
             command="dnssec",
@@ -1060,7 +1060,7 @@ class Domain(commands.Cog, name="Domain"):
     async def rdap(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         domain = self._target(target, ".rdap example.com")
-        payload = await self.http.get_json(f"https://rdap.org/domain/{domain}", cache_ttl=3600)
+        payload = await self.net.get_json(f"https://rdap.org/domain/{domain}", cache_ttl=3600)
         events = {event.get("eventAction"): event.get("eventDate") for event in payload.get("events") or []}
         embed = Intel(
             category="domain",
@@ -1303,7 +1303,7 @@ class Domain(commands.Cog, name="Domain"):
         await ack(ctx)
         domain = self._target(target, ".propagation example.com")
         record_type = (rrtype or "A").upper()
-        results = await dns.propagation(self.http, domain, record_type)
+        results = await dns.propagation(self.net, domain, record_type)
         unique = {value for value in results.values() if value not in {"unreachable"}}
         embed = Intel(
             category="domain",
@@ -1433,12 +1433,12 @@ class Domain(commands.Cog, name="Domain"):
         await ack(ctx)
         raw = normalize_domain(require(target, "domain or TLD", example=".tldinfo example.com"))
         tld = raw.split(".")[-1]
-        listing = await self.http.get_text("https://data.iana.org/TLD/tlds-alpha-by-domain.txt", cache_ttl=86_400)
+        listing = await self.net.get_text("https://data.iana.org/TLD/tlds-alpha-by-domain.txt", cache_ttl=86_400)
         known = {line.strip().lower() for line in listing.splitlines() if line and not line.startswith("#")}
         registered = tld in known
         ascii_tld = tld.encode("idna").decode("ascii") if tld else tld
         registered = registered or ascii_tld in known
-        servers = await dns.ns(self.http, ascii_tld) if registered else []
+        servers = await dns.ns(self.net, ascii_tld) if registered else []
         kind = "country-code (ccTLD)" if len(ascii_tld) == 2 else "generic (gTLD)"
         if ascii_tld.startswith("xn--"):
             kind = "internationalised (IDN TLD)"
@@ -1492,8 +1492,8 @@ class Domain(commands.Cog, name="Domain"):
     async def emailposture(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         domain = self._target(target, ".emailposture example.com")
-        mx = await dns.mx(self.http, domain)
-        txt = await dns.txt(self.http, domain)
+        mx = await dns.mx(self.net, domain)
+        txt = await dns.txt(self.net, domain)
         spf = next((record for record in txt if record.lower().startswith("v=spf1")), None)
         dmarc_records = [record for record in await self._safe(f"_dmarc.{domain}", "TXT") if record.lower().startswith("v=dmarc1")]
         dmarc_tags: dict[str, str] = {}
@@ -1507,14 +1507,14 @@ class Domain(commands.Cog, name="Domain"):
             records = await self._safe(f"{selector}._domainkey.{domain}", "TXT")
             if records:
                 dkim_found.append(selector)
-        ds = await dns.ds(self.http, domain)
+        ds = await dns.ds(self.net, domain)
         mta_sts = [record for record in await self._safe(f"_mta-sts.{domain}", "TXT") if record.lower().startswith("v=stsv1")]
         tls_rpt = [record for record in await self._safe(f"_smtp._tls.{domain}", "TXT") if record.lower().startswith("v=tlsrptv1")]
         bimi = await self._safe(f"default._bimi.{domain}", "TXT")
         policy_text = ""
         if mta_sts:
             try:
-                policy_text = await self.http.get_text(f"https://mta-sts.{domain}/.well-known/mta-sts.txt", cache_ttl=1800, timeout=10)
+                policy_text = await self.net.get_text(f"https://mta-sts.{domain}/.well-known/mta-sts.txt", cache_ttl=1800, timeout=10)
             except IntelError:
                 policy_text = ""
 

@@ -440,7 +440,7 @@ class Admin(commands.Cog, name="System"):
         )
         embed.add_field(
             name="▸ TRANSPORT",
-            value=f"```ini\ngateway   {self.bot.latency * 1000:.0f} ms\nsqlite    {db_ms:.1f} ms\ncache     {self.bot.http.cache_size()} entries```",
+            value=f"```ini\ngateway   {self.bot.latency * 1000:.0f} ms\nsqlite    {db_ms:.1f} ms\ncache     {self.bot.net.cache_size()} entries```",
             inline=True,
         )
         embed.add_field(
@@ -450,7 +450,7 @@ class Admin(commands.Cog, name="System"):
         )
         embed.add_field(
             name="▸ REQUESTS",
-            value=f"```ini\nrequests  {num(self.bot.http.stats['requests'])}\ncached    {num(self.bot.http.stats['cache_hits'])}\nerrors    {num(self.bot.http.stats['errors'])}```",
+            value=f"```ini\nrequests  {num(self.bot.net.stats['requests'])}\ncached    {num(self.bot.net.stats['cache_hits'])}\nerrors    {num(self.bot.net.stats['errors'])}```",
             inline=False,
         )
         embed.add_field(name="▸ EDIT LATENCY", value=f"`{(time.perf_counter() - started) * 1000:.0f} ms`", inline=True)
@@ -491,7 +491,7 @@ class Admin(commands.Cog, name="System"):
         )
         embed.add_field(
             name="▸ TRANSPORT",
-            value=f"```ini\nhttp requests  {num(self.bot.http.stats['requests'])}\ncache hits     {num(self.bot.http.stats['cache_hits'])}\nbytes read     {num(self.bot.http.stats['bytes'])}\nretries        {num(self.bot.http.stats['retries'])}```",
+            value=f"```ini\nhttp requests  {num(self.bot.net.stats['requests'])}\ncache hits     {num(self.bot.net.stats['cache_hits'])}\nbytes read     {num(self.bot.net.stats['bytes'])}\nretries        {num(self.bot.net.stats['retries'])}```",
             inline=False,
         )
         await respond(ctx, embed)

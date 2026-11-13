@@ -108,7 +108,7 @@ class Identity(commands.Cog, name="Identity"):
 
     def __init__(self, bot: Any) -> None:
         self.bot = bot
-        self.http = bot.http
+        self.net = bot.net
 
     # ── email ────────────────────────────────────────────────────────────
 
@@ -116,7 +116,7 @@ class Identity(commands.Cog, name="Identity"):
         digest = hashlib.md5(email.strip().lower().encode()).hexdigest()
         url = f"https://gravatar.com/avatar/{digest}?d=404"
         try:
-            response = await self.http.get(url, cache_ttl=3600, timeout=10)
+            response = await self.net.get(url, cache_ttl=3600, timeout=10)
             return response.status == 200, digest
         except IntelError:
             return False, digest
@@ -130,7 +130,7 @@ class Identity(commands.Cog, name="Identity"):
                 "Breach history per email address. Password exposure checks work without a key.",
                 "https://haveibeenpwned.com/API/Key",
             )
-        response = await self.http.request(
+        response = await self.net.request(
             "GET",
             f"https://haveibeenpwned.com/api/v3/breachedaccount/{urllib.parse.quote(email)}",
             params={"truncateResponse": "false"},
@@ -168,7 +168,7 @@ class Identity(commands.Cog, name="Identity"):
         from core import dns
 
         try:
-            mx = await dns.mx(self.http, domain)
+            mx = await dns.mx(self.net, domain)
         except IntelError:
             mx = []
         disposable = domain in DISPOSABLE_DOMAINS
@@ -335,7 +335,7 @@ class Identity(commands.Cog, name="Identity"):
         profile_url = f"https://gravatar.com/{digest}.json"
         profile: dict[str, Any] = {}
         try:
-            profile = await self.http.get_json(profile_url, cache_ttl=3600, timeout=12)
+            profile = await self.net.get_json(profile_url, cache_ttl=3600, timeout=12)
         except IntelError:
             profile = {}
         avatar = f"https://gravatar.com/avatar/{digest}?s=512"
@@ -400,7 +400,7 @@ class Identity(commands.Cog, name="Identity"):
         async def check(site: dict[str, Any]) -> dict[str, Any]:
             url = site["url"].format(u=urllib.parse.quote(handle))
             try:
-                response = await self.http.request(
+                response = await self.net.request(
                     "GET", url, cache_ttl=900, timeout=8, allow_redirects=True, read_limit=48_000
                 )
             except IntelError as exc:
@@ -626,7 +626,7 @@ class Identity(commands.Cog, name="Identity"):
         secret = require(target, "password", example=".pwnedpass hunter2")
         digest = hashlib.sha1(secret.encode()).hexdigest().upper()
         prefix, suffix = digest[:5], digest[5:]
-        response = await self.http.get_text(
+        response = await self.net.get_text(
             f"https://api.pwnedpasswords.com/range/{prefix}",
             headers={"Add-Padding": "true", "User-Agent": "OSINT-MATRIX"},
             cache_ttl=3600,

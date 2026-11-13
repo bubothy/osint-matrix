@@ -198,7 +198,7 @@ Adding a command is one method plus a decorator:
 )
 async def mycmd(self, ctx, target: str = None):
     await ack(ctx)
-    data = await self.http.get_json("https://api.example.com/lookup")
+    data = await self.net.get_json("https://api.example.com/lookup")
     embed = Intel(category="network", command="mycmd", ctx=ctx, target=target)
     embed.kv("PANEL", {"Key": data.get("value")}, inline=True)
     embed.source("some.public.api")

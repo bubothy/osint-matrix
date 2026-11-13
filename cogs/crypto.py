@@ -69,17 +69,17 @@ class Crypto(commands.Cog, name="Crypto"):
 
     def __init__(self, bot: Any) -> None:
         self.bot = bot
-        self.http = bot.http
+        self.net = bot.net
 
     # ── helpers ──────────────────────────────────────────────────────────
 
     async def _blockstream(self, path: str) -> Any:
-        return await self.http.get_json(
+        return await self.net.get_json(
             f"https://blockstream.info/api{path}", cache_ttl=120, timeout=20
         )
 
     async def _eth(self, method: str, params: list[Any]) -> Any:
-        response = await self.http.request(
+        response = await self.net.request(
             "POST",
             "https://cloudflare-eth.com",
             json_body={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
@@ -94,7 +94,7 @@ class Crypto(commands.Cog, name="Crypto"):
         return payload.get("result")
 
     async def _sol(self, method: str, params: list[Any]) -> Any:
-        response = await self.http.request(
+        response = await self.net.request(
             "POST",
             "https://api.mainnet-beta.solana.com",
             json_body={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
@@ -274,7 +274,7 @@ class Crypto(commands.Cog, name="Crypto"):
         await ack(ctx)
         raw = require(target, "block height or hash", example=".block 800000").strip()
         if raw.isdigit():
-            block_hash = await self.http.get_text(
+            block_hash = await self.net.get_text(
                 f"https://blockstream.info/api/block-height/{raw}", cache_ttl=600, timeout=20
             )
             block_hash = block_hash.strip()

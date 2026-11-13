@@ -39,7 +39,7 @@ class DiscordIntel(commands.Cog, name="Discord"):
 
     def __init__(self, bot: Any) -> None:
         self.bot = bot
-        self.http = bot.http
+        self.net = bot.net
 
     # ── helpers ──────────────────────────────────────────────────────────
 
@@ -189,7 +189,7 @@ class DiscordIntel(commands.Cog, name="Discord"):
     async def invite(self, ctx: commands.Context, target: str = None) -> None:
         await ack(ctx)
         code = self._invite_code(require(target, "invite code or link", example=".invite discord-developers"))
-        payload = await self.http.discord(
+        payload = await self.net.discord(
             f"/invites/{code}", params={"with_counts": "true", "with_expiration": "true"}
         )
         guild = payload.get("guild") or {}
@@ -490,7 +490,7 @@ class DiscordIntel(commands.Cog, name="Discord"):
         webhook_id, token = parts[2], parts[3]
         if not webhook_id.isdigit():
             raise UsageError("The webhook ID is not numeric.")
-        payload = await self.http.discord(f"/webhooks/{webhook_id}/{token}")
+        payload = await self.net.discord(f"/webhooks/{webhook_id}/{token}")
         embed = Intel(
             category="discord",
             command="webhook",
@@ -591,7 +591,7 @@ class DiscordIntel(commands.Cog, name="Discord"):
     )
     async def status(self, ctx: commands.Context) -> None:
         await ack(ctx)
-        payload = await self.http.get_json("https://discordstatus.com/api/v2/summary.json", cache_ttl=120)
+        payload = await self.net.get_json("https://discordstatus.com/api/v2/summary.json", cache_ttl=120)
         indicator = (payload.get("status") or {}).get("indicator", "unknown")
         components = payload.get("components") or []
         degraded = [component for component in components if component.get("status") != "operational"]
