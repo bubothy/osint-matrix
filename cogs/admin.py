@@ -608,14 +608,17 @@ class Admin(commands.Cog, name="System"):
     async def sync(self, ctx: commands.Context) -> None:
         """Force a slash-command sync."""
         await ack(ctx)
-        count = await self.bot.sync_commands()
+        count = await self.bot.sync_commands(force=True)
         await respond(
             ctx,
             notice(
                 "APPLICATION COMMANDS SYNCED",
-                f"`{count}` commands pushed to Discord.",
+                f"`{count}` command entries pushed to Discord.",
                 category="ok",
-                fields=[("SCOPE", "guild (instant)" if settings.guild_id else "global (up to 1 hour)", False)],
+                fields=[
+                    ("SCOPE", "global (servers, DMs, group DMs) + guild copy", False),
+                    ("PROPAGATION", "guild copy is instant; global DMs can take up to 1 hour", False),
+                ],
             ),
         )
 
@@ -637,16 +640,21 @@ class Admin(commands.Cog, name="System"):
             permissions=permissions,
             scopes=("bot", "applications.commands"),
         )
+        user_url = (
+            f"https://discord.com/oauth2/authorize?client_id={self.bot.user.id}"
+            "&integration_type=1&scope=applications.commands"
+        )
         await respond(
             ctx,
             notice(
-                "INVITE LINK",
-                f"[Add this bot to a server]({url})",
+                "INVITE LINKS",
+                f"[Add to a server]({url})\n[Add to your account for DMs and group DMs]({user_url})",
                 category="admin",
                 fields=[
-                    ("SCOPES", "`bot` · `applications.commands`", True),
-                    ("PERMISSIONS", "read, send, embed, attach, history, reactions", True),
-                    ("NOTE", "This bot is private: only approved IDs can invoke commands after it joins.", False),
+                    ("SERVER SCOPES", "`bot` · `applications.commands`", True),
+                    ("USER SCOPES", "`applications.commands` only — no server permissions", True),
+                    ("PERMISSIONS", "read, send, embed, attach, history, reactions", False),
+                    ("NOTE", "This bot is private: only approved IDs can invoke commands after install.", False),
                 ],
             ),
         )

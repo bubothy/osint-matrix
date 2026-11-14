@@ -11,10 +11,11 @@ from __future__ import annotations
 import time
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
+from urllib.parse import quote
 
 import discord
 
-from core.utils import bar, clip, kv_block, risk_label, unique, utcnow
+from core.utils import bar, clip, is_ip, kv_block, normalize_host, risk_label, unique, utcnow
 
 # category -> (colour, glyph, label)
 PALETTE: dict[str, tuple[int, str, str]] = {
@@ -38,6 +39,24 @@ SEVERITY_COLOURS = {
     "LOW": 0x65A30D,
     "NONE": 0x475569,
 }
+
+RISK_COLOURS = {
+    "CRITICAL": 0xB91C1C,
+    "HIGH": 0xEA580C,
+    "ELEVATED": 0xD97706,
+    "GUARDED": 0x65A30D,
+    "MINIMAL": 0x22C55E,
+}
+
+RISK_GLYPHS = {
+    "CRITICAL": "🔴",
+    "HIGH": "🟠",
+    "ELEVATED": "🟡",
+    "GUARDED": "🟢",
+    "MINIMAL": "⚪",
+}
+
+CHECK_GLYPHS = {True: "✅", False: "❌", None: "➖"}
 
 
 def _bot_icon(ctx: Any) -> str | None:
@@ -74,6 +93,7 @@ class Intel:
         self.sources: list[str] = []
         self.started = time.perf_counter()
         self.cached = False
+        self._section = 0
 
         colour, glyph, label = PALETTE.get(category, PALETTE["admin"])
         self.glyph = glyph
@@ -95,8 +115,12 @@ class Intel:
     def field(self, name: str, value: Any, *, inline: bool = False) -> "Intel":
         if len(self.embed.fields) >= 24:
             return self
+        label = str(name).strip()
+        if label.startswith("▸ "):
+            label = label[2:]
+        self._section += 1
         rendered = clip(value, 1024) if value not in (None, "") else "—"
-        self.embed.add_field(name=clip(name, 250), value=rendered, inline=inline)
+        self.embed.add_field(name=clip(f"{self._section:02d} ▸ {label}", 250), value=rendered, inline=inline)
         return self
 
     def kv(self, name: str, pairs: Mapping[str, Any] | Sequence[tuple[str, Any]], *, inline: bool = True, lang: str = "ini") -> "Intel":
@@ -114,17 +138,35 @@ class Intel:
         return self.field(f"▸ {name}", "\n".join(lines) or "—", inline=inline)
 
     def checks(self, name: str, results: Sequence[tuple[bool | None, str, str]], *, inline: bool = False) -> "Intel":
+        rows = list(results)
+        if not rows:
+            return self.field(f"▸ {name}", "`no checks recorded`", inline=inline)
+        passed = sum(1 for state, _, _ in rows if state is True)
+        failed = sum(1 for state, _, _ in rows if state is False)
+        unknown = len(rows) - passed - failed
+        summary = f"**{passed} passed**"
+        if failed:
+            summary += f"  ·  **{failed} failed**"
+        if unknown:
+            summary += f"  ·  **{unknown} unknown**"
         lines = []
-        for state, label, detail in results:
-            glyph = "✓" if state is True else "✗" if state is False else "•"
-            suffix = f" — {clip(detail, 150)}" if detail else ""
-            lines.append(f"`{glyph}` **{clip(label, 60)}**{suffix}")
-        return self.field(f"▸ {name}", "\n".join(lines) or "—", inline=inline)
+        for state, label, detail in rows:
+            suffix = f"  ·  {clip(detail, 150)}" if detail else ""
+            lines.append(f"{CHECK_GLYPHS.get(state, '➖')} **{clip(label, 60)}**{suffix}")
+        return self.field(f"▸ {name}", summary + "\n" + "\n".join(lines), inline=inline)
 
     def risk(self, score: float, *, name: str = "RISK INDEX", verdict: str | None = None, inline: bool = False) -> "Intel":
         score = max(0, min(100, int(round(float(score)))))
         label = verdict or risk_label(score)
-        return self.field(f"▸ {name}", f"`{bar(score)}`  **{score}/100**  ·  {label}", inline=inline)
+        tone = RISK_COLOURS.get(label.upper())
+        if tone is not None:
+            self.embed.color = tone
+        glyph = RISK_GLYPHS.get(label.upper(), "•")
+        return self.field(
+            f"▸ {name}",
+            f"`{bar(score, width=16)}`  **{score}/100**  ·  {glyph} **{label}**",
+            inline=inline,
+        )
 
     def quote(self, text: str) -> "Intel":
         self.embed.description = clip((self.embed.description or "") + f"\n\n> {text}", 4000)
@@ -154,10 +196,23 @@ class Intel:
 
     # ── finalise ─────────────────────────────────────────────────────────
 
+    def _auto_thumbnail(self) -> None:
+        """Give web/domain dossiers a favicon when a command did not set one."""
+        if self.embed.thumbnail.url or not self.target or self.category not in {"web", "domain"}:
+            return
+        host = normalize_host(self.target)
+        if not host or is_ip(host) or "." not in host:
+            return
+        try:
+            self.embed.set_thumbnail(url=f"https://www.google.com/s2/favicons?domain={quote(host)}&sz=128")
+        except Exception:  # noqa: BLE001 - cosmetic only
+            pass
+
     def finish(self, ctx: Any = None, *, source: str | None = None, elapsed_ms: float | None = None, extra: str | None = None) -> discord.Embed:
         ctx = ctx if ctx is not None else self.ctx
         if source:
             self.source(source)
+        self._auto_thumbnail()
         elapsed = elapsed_ms if elapsed_ms is not None else (time.perf_counter() - self.started) * 1000
         parts: list[str] = []
         if ctx is not None:
@@ -165,11 +220,15 @@ class Intel:
                 parts.append(str(ctx.author))
             except Exception:  # noqa: BLE001 - cosmetic only
                 pass
+        if self.command:
+            parts.append(self.command)
+        if self.embed.fields:
+            parts.append(f"{len(self.embed.fields)} sections")
         if self.sources:
-            parts.append("src " + " + ".join(unique(self.sources)[:3]))
+            parts.append("src " + " · ".join(str(item) for item in unique(self.sources)[:3]))
         parts.append(f"{elapsed:.0f} ms")
         if self.cached:
-            parts.append("cached")
+            parts.append("cache hit")
         if extra:
             parts.append(extra)
         parts.append("OSINT MATRIX")
@@ -221,10 +280,16 @@ def notice(
         color=colour,
         timestamp=utcnow(),
     )
-    for name, value, inline in fields:
-        embed.add_field(name=clip(f"▸ {name}", 250), value=clip(value, 1024) or "—", inline=inline)
+    embed.set_author(name=f"{glyph}  OSINT MATRIX  ·  {label}")
+    for index, (name, value, inline) in enumerate(fields, 1):
+        field_name = str(name).strip()
+        if field_name.startswith("▸ "):
+            field_name = field_name[2:]
+        embed.add_field(name=clip(f"{index:02d} ▸ {field_name}", 250), value=clip(value, 1024) or "—", inline=inline)
     if footer:
         embed.set_footer(text=clip(footer, 2048))
+    else:
+        embed.set_footer(text=clip(f"OSINT MATRIX  •  {label.title()}", 2048))
     return embed
 
 
@@ -281,8 +346,12 @@ def paginate(
     groups = [sections[i : i + per_page] for i in range(0, len(sections), per_page)] or [()]
     for page_index, group in enumerate(groups, 1):
         embed = base.copy()
-        for name, value in group:
-            embed.add_field(name=clip(name, 250), value=clip(value, 1024) or "—", inline=False)
+        start = len(embed.fields) + 1
+        for offset, (name, value) in enumerate(group, start):
+            field_name = str(name).strip()
+            if field_name.startswith("▸ "):
+                field_name = field_name[2:]
+            embed.add_field(name=clip(f"{offset:02d} ▸ {field_name}", 250), value=clip(value, 1024) or "—", inline=False)
         suffix = title_suffix.format(page=page_index, total=len(groups))
         embed.title = clip(f"{base.title or ''}{suffix}", 250)
         pages.append(embed)

@@ -6,9 +6,9 @@ OSINT sources**: DNS, WHOIS/RDAP, certificate transparency, public APIs and publ
 ledger data.
 
 - **117 intelligence commands** across eight categories, plus **18 operator commands**.
-- **Prefix commands** (default `.`) and **slash shortcuts** (`/net`, `/domain`, `/web`, `/identity`, `/social`, `/discord`, `/vuln`, `/crypto`).
+- **Prefix commands** (default `.`) and **slash shortcuts** (`/net`, `/domain`, `/web`, `/identity`, `/social`, `/discord`, `/vuln`, `/crypto`) in servers, bot DMs and group DMs.
 - **Private by design**: only owners and explicitly approved Discord IDs can run anything.
-- **Detailed embeds**: every response carries a category banner, aligned data panes, an analysis pipeline, signal checks, a risk index and a source/latency footer.
+- **Detailed embeds**: numbered data sections, dynamic risk accents, pass/fail check summaries, automatic favicons on web/domain dossiers, and a source/latency/section footer.
 - **Runs on a Windows laptop** with Python only. No Linux, Docker, WSL or cloud account required.
 
 > **Responsible use.** This is a research and defensive-security tool. Query only
@@ -66,8 +66,9 @@ COMMAND_PREFIX=.
 GUILD_ID=your-private-server-id
 ```
 
-`GUILD_ID` makes slash commands appear instantly. Without it they sync globally
-and Discord may take up to an hour to show them.
+`GUILD_ID` makes the slash commands appear instantly in that server. They are
+also synced globally so the same commands work in bot DMs and group DMs; Discord
+may take up to an hour to propagate the global copy.
 
 4. Double-click **`run.bat`**.
 
@@ -100,13 +101,26 @@ copy .env.example .env
 | Approved users | Stored in `data/osint.sqlite3`, added with `.approve <id>` |
 | Everyone else | Denied before any command executes; the attempt is logged |
 | Maintenance mode | `.maintenance on` restricts everything to owners |
-| DMs | Allowed for approved users unless `ALLOW_DMS=false` |
+| DMs | Prefix and slash commands are allowed for approved users unless `ALLOW_DMS=false` |
 | Audit | Every lookup is written to SQLite and, if `LOG_CHANNEL_ID` is set, mirrored to that channel |
 
 Admin commands: `approve`, `revoke`, `approvals`, `audit`, `prefix`, `maintenance`,
 `reload`, `sync`, `stats`, `sources`, `apikeys`, `botinvite`, `about`, `shutdown`.
 
 `approve` is owners-only, so a compromised approved account cannot widen access.
+
+### Slash commands in DMs and group DMs
+
+Slash commands are global and include the `BOT_DM` and `PRIVATE_CHANNEL`
+contexts. Two one-time steps make them visible outside a server:
+
+1. In the Developer Portal → **Installation**, enable **User Install**.
+2. Run `.botinvite` as the owner and open **Add to your account for DMs and group DMs** (the `integration_type=1` link). This grants `applications.commands` only — no server permissions.
+
+Then run `.sync` as owner, or restart the bot. Guild copies update instantly;
+the global copy can take up to an hour to appear in DMs. In a group DM, add the
+OSINT app as a member and run `/help` or `/net`. Access control still applies:
+unapproved users are denied before any lookup runs.
 
 ---
 
@@ -216,7 +230,7 @@ Categories are wired into `COGS` in `bot.py` and `GROUPS` in `cogs/dispatch.py`.
 | `Login failed: DISCORD_TOKEN is invalid` | Reset the token in the Developer Portal and update `.env` |
 | `MESSAGE CONTENT INTENT is not enabled` | Bot → Privileged Gateway Intents → enable and save |
 | Prefix commands do nothing | Message Content Intent, or your ID is not approved (`.whoami`) |
-| Slash commands missing | Set `GUILD_ID` and restart, or run `.sync` as owner |
+| Slash commands missing | Restart or run `.sync` as owner. DMs/group DMs also need User Install enabled and the app added to your account (`.botinvite`); global propagation can take up to an hour |
 | `.help` works but lookups fail | Outbound firewall blocking HTTPS or TCP/43; check `logs/bot.log` |
 | Reddit lookups 403 | Reddit blocks data-centre IPs; rerun later or from home broadband |
 | crt.sh 502 / timeouts | The public instance throttles; wait a minute and retry |

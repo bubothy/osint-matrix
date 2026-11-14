@@ -145,6 +145,14 @@ class Dispatch(commands.Cog, name="Slash"):
             inline=False,
         )
         embed.add_field(
+            name="▸ WHERE IT WORKS",
+            value=(
+                "Servers, direct messages with the bot, and group DMs. If the app is not "
+                "in your DMs yet, run `.botinvite` and install it to your account."
+            ),
+            inline=False,
+        )
+        embed.add_field(
             name="▸ ACCESS",
             value="Ask the operator to approve your Discord ID. Without approval no command executes.",
             inline=False,

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 import logging.handlers
 import sys
@@ -15,6 +16,7 @@ import traceback
 from typing import Any
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from config import DATA_DIR, LOG_DIR, settings
@@ -87,6 +89,12 @@ class OsintBot(commands.Bot):
             owner_ids=set(settings.owner_ids),
             allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True, replied_user=False),
         )
+        # Global commands make the slash surface available in servers, bot DMs
+        # and group DMs. User install is required for private-channel contexts.
+        self.tree.allowed_contexts = app_commands.AppCommandContext(
+            guild=True, dm_channel=True, private_channel=True
+        )
+        self.tree.allowed_installs = app_commands.AppInstallationType(guild=True, user=True)
         self.store: Store
         self.net: HTTPClient
         self.launch_time: float = time.time()
@@ -160,21 +168,52 @@ class OsintBot(commands.Bot):
 
     # ── slash sync ───────────────────────────────────────────────────────
 
-    async def sync_commands(self, *, verbose: bool = True) -> int:
+    async def sync_commands(self, *, verbose: bool = True, force: bool = False) -> int:
+        """Sync the global tree (servers, DMs, group DMs) and a guild copy.
+
+        Global commands are required for DMs and group DMs. The guild copy is
+        synced too so the same commands appear instantly in the operator's
+        server instead of waiting for global propagation.
+        """
         try:
-            if settings.guild_id:
+            payload = [command.to_dict(self.tree) for command in self.tree.get_commands()]
+            fingerprint = hashlib.sha256(
+                json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str).encode()
+            ).hexdigest()
+        except Exception:  # noqa: BLE001 - a sync should still be attempted
+            LOG.exception("could not fingerprint application commands")
+            fingerprint = ""
+
+        stored = await self.store.kv_get("slash_fingerprint")
+        total = 0
+
+        if force or not fingerprint or fingerprint != stored:
+            try:
+                synced = await self.tree.sync()
+            except discord.HTTPException:
+                LOG.exception("global application command sync failed")
+            else:
+                total += len(synced)
+                LOG.info("synced %d global application commands (servers, DMs, group DMs)", len(synced))
+                if fingerprint:
+                    await self.store.kv_set("slash_fingerprint", fingerprint)
+        else:
+            LOG.info("global application commands unchanged; sync skipped")
+
+        if settings.guild_id:
+            try:
                 guild = discord.Object(id=settings.guild_id)
                 self.tree.copy_global_to(guild=guild)
                 synced = await self.tree.sync(guild=guild)
+            except discord.HTTPException:
+                LOG.exception("guild application command sync failed")
             else:
-                synced = await self.tree.sync()
-        except discord.HTTPException:
-            LOG.exception("slash command sync failed")
-            return 0
-        LOG.info("synced %d application commands", len(synced))
+                total += len(synced)
+                LOG.info("synced %d guild application commands for %s", len(synced), settings.guild_id)
+
         if verbose:
             LOG.info("application command sync complete")
-        return len(synced)
+        return total
 
     # ── telemetry ────────────────────────────────────────────────────────
 
@@ -376,7 +415,8 @@ def main() -> int:
 
     print(f"  Prefix       : {settings.prefix}")
     print(f"  Owners       : {len(settings.owner_ids)}")
-    print(f"  Guild sync   : {settings.guild_id or 'global (may take up to 1 hour)'}")
+    scope = "global + guild (guild instant, DMs up to 1 hour)" if settings.guild_id else "global (DMs, up to 1 hour)"
+    print(f"  Slash sync   : {scope}")
     print(f"  Audit channel: {settings.log_channel_id or 'disabled'}")
     print(f"  Slash        : {'/net /domain /web /identity /social /discord /vuln /crypto'}")
     print()
