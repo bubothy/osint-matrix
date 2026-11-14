@@ -35,6 +35,7 @@ class AppearanceCog(commands.Cog, name="Appearance"):
             ("THEME", f"`{cfg.theme}`", True),
             ("BRAND", cfg.brand, True),
             ("ACCENT", accent, True),
+            ("MINIMAL", ON_OFF[cfg.minimal], True),
             ("NUMBERS", ON_OFF[cfg.numbers], True),
             ("ICONS", ON_OFF[cfg.icons], True),
             ("PIPELINE", ON_OFF[cfg.pipeline], True),
@@ -54,6 +55,7 @@ class AppearanceCog(commands.Cog, name="Appearance"):
                 "CONTROLS",
                 "`.appearance theme clean|classic|mono|neon`\n"
                 "`.appearance set <option> <value>`\n"
+                "`.appearance set minimal on|off`\n"
                 "`.appearance color <category|all> <#hex|reset>`\n"
                 "`.appearance preview`\n"
                 "`.appearance reset`",
@@ -114,7 +116,7 @@ class AppearanceCog(commands.Cog, name="Appearance"):
         if not option or value is None:
             raise UsageError(
                 "Use `.appearance set <option> <value>`. Options: brand, footer, accent, "
-                "numbers, icons, pipeline, thumbnails, checks, summary, author, compact."
+                "minimal, numbers, icons, pipeline, thumbnails, checks, summary, author, compact."
             )
         try:
             summary = style.set_option(option, value)
@@ -191,7 +193,7 @@ class AppearanceCog(commands.Cog, name="Appearance"):
         embed.risk(24, name="RISK")
         embed.steps(["Pipeline blocks appear only when the pipeline option is enabled."])
         embed.source("sample source")
-        await respond(ctx, embed.finish(ctx))
+        await embed.send(ctx)
 
     @appearance_group.command(name="reset", usage="")
     @owner_only()

@@ -36,8 +36,9 @@ THEMES: dict[str, dict[str, Any]] = {
         "pipeline": False,
         "checks": "text",
         "summary": False,
-        "author": True,
+        "author": False,
         "compact": True,
+        "minimal": True,
         "accent": None,
         "colors": {},
     },
@@ -49,6 +50,7 @@ THEMES: dict[str, dict[str, Any]] = {
         "summary": True,
         "author": True,
         "compact": False,
+        "minimal": False,
         "accent": None,
         "colors": {},
     },
@@ -60,6 +62,7 @@ THEMES: dict[str, dict[str, Any]] = {
         "summary": False,
         "author": False,
         "compact": True,
+        "minimal": True,
         "accent": 0x64748B,
         "colors": {},
     },
@@ -71,6 +74,7 @@ THEMES: dict[str, dict[str, Any]] = {
         "summary": True,
         "author": True,
         "compact": False,
+        "minimal": False,
         "accent": None,
         "colors": {
             "network": 0x38BDF8,
@@ -102,8 +106,9 @@ class Appearance:
     thumbnails: bool = True
     checks: str = "text"
     summary: bool = False
-    author: bool = True
+    author: bool = False
     compact: bool = True
+    minimal: bool = True
 
 
 _current = Appearance()
@@ -167,7 +172,7 @@ def set_option(key: str, raw: Any) -> str:
         _current.accent = parse_colour(raw)
         _current.theme = "custom"
         return "Accent colour reset." if _current.accent is None else f"Accent set to `#{_current.accent:06X}`."
-    if key in {"numbers", "icons", "pipeline", "thumbnails", "summary", "author", "compact"}:
+    if key in {"numbers", "icons", "pipeline", "thumbnails", "summary", "author", "compact", "minimal"}:
         setattr(_current, key, _bool(raw, key=key))
         _current.theme = "custom"
         state = "on" if getattr(_current, key) else "off"
@@ -181,7 +186,7 @@ def set_option(key: str, raw: Any) -> str:
         return f"Check style set to **{value}**."
     raise ValueError(
         "Unknown option. Use `brand`, `footer`, `accent`, `numbers`, `icons`, "
-        "`pipeline`, `thumbnails`, `checks`, `summary`, `author` or `compact`."
+        "`pipeline`, `thumbnails`, `checks`, `summary`, `author`, `compact` or `minimal`."
     )
 
 
@@ -224,6 +229,7 @@ def snapshot() -> dict[str, Any]:
         "summary": _current.summary,
         "author": _current.author,
         "compact": _current.compact,
+        "minimal": _current.minimal,
     }
 
 
@@ -249,13 +255,16 @@ def apply_payload(payload: Any) -> None:
             for key, value in colors.items()
             if str(key) in CATEGORIES and isinstance(value, int) and 0 <= value <= 0xFFFFFF
         }
-    for key in ("numbers", "icons", "pipeline", "thumbnails", "summary", "author", "compact"):
+    for key in ("numbers", "icons", "pipeline", "thumbnails", "summary", "author", "compact", "minimal"):
         if isinstance(payload.get(key), bool):
             setattr(_current, key, payload[key])
     if payload.get("checks") in {"text", "emoji"}:
         _current.checks = payload["checks"]
     if payload.get("theme") in THEMES or payload.get("theme") == "custom":
         _current.theme = payload["theme"]
+    if "minimal" not in payload:
+        # Older saved records predate the minimal layout; keep their display honest.
+        _current.author = False
 
 
 async def load(store: Any) -> None:

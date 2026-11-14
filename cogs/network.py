@@ -79,20 +79,6 @@ class Network(commands.Cog, name="Network"):
         return data
 
     @staticmethod
-    def _address_metrics(embed: Intel, data: dict[str, Any]) -> None:
-        conn = data.get("connection") or {}
-        security = data.get("security") or {}
-        flags = [name for name in ("proxy", "vpn", "tor", "hosting") if security.get(name)]
-        embed.metrics(
-            [
-                ("ASN", f"AS{conn.get('asn')}" if conn.get("asn") else "—"),
-                ("Country", data.get("country_code") or data.get("country") or "—"),
-                ("Network", conn.get("org") or conn.get("isp") or "—"),
-                ("Signals", ", ".join(flags) or "none"),
-            ]
-        )
-
-    @staticmethod
     def _address_panel(embed: Intel, data: dict[str, Any]) -> None:
         conn = data.get("connection") or {}
         tz = data.get("timezone") or {}
@@ -239,7 +225,6 @@ class Network(commands.Cog, name="Network"):
                 "anonymity signals and forward-confirmed reverse DNS."
             ),
         )
-        self._address_metrics(embed, data)
         self._address_panel(embed, data)
         await self._ptr_panel(embed, raw)
         embed.steps(
@@ -344,7 +329,6 @@ class Network(commands.Cog, name="Network"):
             target=address,
             summary="The public address this host presents to the internet. Useful for allow-listing the bot or verifying a VPN egress.",
         )
-        self._address_metrics(embed, data)
         self._address_panel(embed, data)
         embed.steps(
             [

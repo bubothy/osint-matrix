@@ -11,6 +11,7 @@ import discord
 from discord.ext import commands
 
 from config import OPTIONAL_KEYS, settings
+from core import emojis
 from core.checks import owner_only
 from core.embeds import notice, respond
 from core.errors import UsageError
@@ -154,8 +155,8 @@ class Admin(commands.Cog, name="System"):
             if not names:
                 continue
             embed.add_field(
-                name=f"▸ {label}  ·  {len(names)} commands",
-                value=f"{blurb}\n`" + "` `".join(names) + "`",
+                name=f'▸ {label}  ·  {len(names)} commands',
+                value=f'{blurb}\n' + clip(' '.join(emojis.label(name) for name in names), 1000),
                 inline=False,
             )
         system = sorted(
@@ -163,8 +164,8 @@ class Admin(commands.Cog, name="System"):
         )
         if system:
             embed.add_field(
-                name=f"▸ SYSTEM  ·  {len(system)} commands",
-                value="Access control, telemetry and operator tooling\n`" + "` `".join(system) + "`",
+                name=f'▸ SYSTEM  ·  {len(system)} commands',
+                value='Access control, telemetry and operator tooling\n' + clip(' '.join(emojis.label(name) for name in system), 1000),
                 inline=False,
             )
         await respond(ctx, embed)
@@ -192,11 +193,13 @@ class Admin(commands.Cog, name="System"):
         prefix = (await self.bot.store.get_prefix(ctx.guild.id)) if ctx.guild else settings.prefix
         prefix = prefix or settings.prefix
 
+        mark = emojis.markup(command.name)
+        brief = command.brief or command.help or 'No description registered.'
         embed = notice(
-            f"{command.name.upper()}",
-            command.brief or command.help or "No description registered.",
-            category=category if category in {key for key, _, _ in CATEGORY_ORDER} else "admin",
-            footer=f"{len(command.aliases)} aliases  •  category {category}  •  OSINT MATRIX",
+            f'{command.name.upper()}',
+            f'{mark} {brief}' if mark else brief,
+            category=category if category in {key for key, _, _ in CATEGORY_ORDER} else 'admin',
+            footer=f'{len(command.aliases)} aliases  ·  category {category}',
         )
         embed.add_field(name="▸ SYNTAX", value=f"```ini\n{prefix}{command.qualified_name} {command.usage or ''}```", inline=False)
         if command.aliases:
@@ -249,8 +252,13 @@ class Admin(commands.Cog, name="System"):
             cat = command.extras.get("category", "system")
             if selected and cat != selected:
                 continue
-            sources = command.extras.get("sources", [])
+            sources = command.extras.get('sources', [])
+            mark = emojis.markup(command.name)
             value = (
+                f"{mark} `{command.usage or command.name}`\n"
+                f"{command.brief or '—'}\n"
+                f"-# {', '.join(sources) if sources else 'internal'}"
+            ) if mark else (
                 f"`{command.usage or command.name}`\n"
                 f"{command.brief or '—'}\n"
                 f"-# {', '.join(sources) if sources else 'internal'}"

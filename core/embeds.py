@@ -1,13 +1,14 @@
 """Embed engine.
 
-Every response in this bot is built through :class:`Intel` so that command
-output is structurally identical: a category banner, a target title, labelled
-data panes in aligned code blocks, an analysis pipeline, a risk index and a
-footer carrying the source, latency and requester.
+Every intelligence response is built through :class:`Intel`. The default view is
+minimal: one custom-emoji command line, data fields in working code blocks and
+tables, and a cv2 badge thumbnail. The classic view keeps the author, title,
+summary, checks, risk bar and source/latency footer.
 """
 
 from __future__ import annotations
 
+import io
 import re
 import time
 from collections.abc import Iterable, Mapping, Sequence
@@ -16,7 +17,7 @@ from urllib.parse import quote
 
 import discord
 
-from core import appearance
+from core import appearance, emojis
 from core.utils import bar, clip, is_ip, kv_block, normalize_host, risk_label, unique, utcnow
 
 # category -> (colour, glyph, label)
@@ -148,21 +149,24 @@ class Intel:
         self._section = 0
 
         cfg = appearance.get()
-        colour, glyph, label = PALETTE.get(category, PALETTE["admin"])
-        self.glyph = glyph if cfg.icons else ""
+        colour, glyph, label = PALETTE.get(category, PALETTE['admin'])
+        self.glyph = glyph if cfg.icons else ''
         self.label = label
         self.embed = discord.Embed(color=color or appearance.colour(category, colour), timestamp=utcnow())
-        if cfg.author:
-            author = cfg.brand
-            if cfg.icons:
-                author = f"{glyph}  {author}"
-            self.embed.set_author(name=clip(f"{author}  ·  {label.title()}", 256), icon_url=_bot_icon(ctx))
-        title = command
-        if self.target:
-            title = f"{command}  ·  {clip(self.target, 140)}"
-        self.embed.title = clip(title, 250)
-        if summary and cfg.summary:
-            self.embed.description = clip(summary, 4000)
+        if cfg.minimal:
+            self.embed.description = emojis.header(command, self.target)
+        else:
+            if cfg.author:
+                author = cfg.brand
+                if cfg.icons:
+                    author = f'{glyph}  {author}'
+                self.embed.set_author(name=clip(f'{author}  ·  {label.title()}', 256), icon_url=_bot_icon(ctx))
+            title = command
+            if self.target:
+                title = f'{command}  ·  {clip(self.target, 140)}'
+            self.embed.title = clip(title, 250)
+            if summary and cfg.summary:
+                self.embed.description = clip(summary, 4000)
 
     # ── content ──────────────────────────────────────────────────────────
 
@@ -229,14 +233,23 @@ class Intel:
             )
         return self.code(name, "\n".join(lines), lang=lang, inline=inline)
 
-    def steps(self, items: Iterable[Any], *, name: str = "ANALYSIS PIPELINE", inline: bool = False) -> "Intel":
-        if name == "ANALYSIS PIPELINE" and not appearance.get().pipeline:
+    def steps(self, items: Iterable[Any], *, name: str = 'ANALYSIS PIPELINE', inline: bool = False) -> 'Intel':
+        if appearance.get().minimal:
+            return self
+        if name == 'ANALYSIS PIPELINE' and not appearance.get().pipeline:
             return self
         lines = [f"`{index:02d}` {clip(str(item), 190)}" for index, item in enumerate(items, 1)]
         return self.field(f"▸ {name}", "\n".join(lines) or "—", inline=inline)
 
-    def checks(self, name: str, results: Sequence[tuple[bool | None, str, str]], *, inline: bool = False) -> "Intel":
+    def checks(self, name: str, results: Sequence[tuple[bool | None, str, str]], *, inline: bool = False) -> 'Intel':
         rows = list(results)
+        if appearance.get().minimal:
+            failures = [
+                f"**{clip(label, 60)}**" + (f" — {clip(detail, 120)}" if detail else "")
+                for state, label, detail in rows
+                if state is False
+            ]
+            return self.field('WARNINGS', clip('  ·  '.join(failures), 1000), inline=False) if failures else self
         if not rows:
             return self.field(f"▸ {name}", "`no checks recorded`", inline=inline)
         passed = sum(1 for state, _, _ in rows if state is True)
@@ -260,7 +273,9 @@ class Intel:
         tone = RISK_COLOURS.get(label.upper())
         if tone is not None:
             self.embed.color = tone
-        glyph = RISK_GLYPHS.get(label.upper(), "") if appearance.get().icons else ""
+        if appearance.get().minimal:
+            return self
+        glyph = RISK_GLYPHS.get(label.upper(), '') if appearance.get().icons else ''
         tail = f"{glyph}  **{label}**" if glyph else f"**{label}**"
         return self.field(
             f"▸ {name}",
@@ -268,8 +283,10 @@ class Intel:
             inline=inline,
         )
 
-    def quote(self, text: str) -> "Intel":
-        self.embed.description = clip((self.embed.description or "") + f"\n\n> {text}", 4000)
+    def quote(self, text: str) -> 'Intel':
+        if appearance.get().minimal:
+            return self
+        self.embed.description = clip((self.embed.description or '') + f'\n\n> {text}', 4000)
         return self
 
     def thumbnail(self, url: str | None) -> "Intel":
@@ -298,7 +315,7 @@ class Intel:
 
     def _auto_thumbnail(self) -> None:
         """Give web/domain dossiers a favicon when a command did not set one."""
-        if not appearance.get().thumbnails:
+        if appearance.get().minimal or not appearance.get().thumbnails:
             return
         if self.embed.thumbnail.url or not self.target or self.category not in {"web", "domain"}:
             return
@@ -315,6 +332,10 @@ class Intel:
         ctx = ctx if ctx is not None else self.ctx
         if source:
             self.source(source)
+        if cfg.minimal:
+            if cfg.footer:
+                self.embed.set_footer(text=clip(cfg.footer, 2048))
+            return self.embed
         self._auto_thumbnail()
         elapsed = elapsed_ms if elapsed_ms is not None else (time.perf_counter() - self.started) * 1000
         parts: list[str] = []
@@ -348,7 +369,27 @@ class Intel:
     async def send(self, ctx: Any = None, *, view: discord.ui.View | None = None, files: list[discord.File] | None = None, source: str | None = None) -> discord.Message | None:
         ctx = ctx if ctx is not None else self.ctx
         embed = self.finish(ctx, source=source)
-        return await respond(ctx, embed, view=view, files=files)
+        cfg = appearance.get()
+        original_files = list(files or [])
+        icon_added = False
+        if cfg.minimal and cfg.thumbnails and not getattr(embed.thumbnail, 'url', None):
+            try:
+                from core import visuals
+
+                accent = appearance.colour(self.category, PALETTE.get(self.category, PALETTE['admin'])[0])
+                png = visuals.icon_png(self.command, self.category, accent)
+                name = visuals.filename(self.command)
+                embed.set_thumbnail(url=f'attachment://{name}')
+                files = original_files + [discord.File(io.BytesIO(png), filename=name)]
+                icon_added = True
+            except Exception:  # noqa: BLE001 - artwork is decorative
+                files = original_files
+        message = await respond(ctx, embed, view=view, files=files)
+        if message is None and icon_added:
+            # Some channels reject file uploads; the data embed is still useful.
+            embed.set_thumbnail(url=None)
+            return await respond(ctx, embed, view=view, files=original_files)
+        return message
 
 
 async def respond(
@@ -393,8 +434,8 @@ def notice(
         color=appearance.colour(category, colour),
         timestamp=utcnow(),
     )
-    if cfg.author:
-        author = f"{glyph}  {cfg.brand}" if cfg.icons else cfg.brand
+    if cfg.author and not cfg.minimal:
+        author = f'{glyph}  {cfg.brand}' if cfg.icons else cfg.brand
         embed.set_author(name=clip(author, 256))
     for index, (name, value, inline) in enumerate(fields, 1):
         if _FENCE.match(str(value)):
@@ -404,7 +445,7 @@ def notice(
         embed.set_footer(text=clip(footer, 2048))
     elif cfg.footer:
         embed.set_footer(text=clip(cfg.footer, 2048))
-    elif not cfg.compact:
+    elif not cfg.compact and not cfg.minimal:
         embed.set_footer(text=clip(cfg.brand, 2048))
     return embed
 

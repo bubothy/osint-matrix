@@ -8,7 +8,7 @@ ledger data.
 - **117 intelligence commands** across eight categories, plus **18 operator commands**.
 - **Prefix commands** (default `.`) and **slash shortcuts** (`/net`, `/domain`, `/web`, `/identity`, `/social`, `/discord`, `/vuln`, `/crypto`) in servers, bot DMs and group DMs.
 - **Private by design**: only owners and explicitly approved Discord IDs can run anything.
-- **Readable embeds**: compact data panes, optional risk accents, pass/fail checks, and a clean source/latency footer. Operators can switch themes, colors and layout with `.appearance`.
+- **Readable embeds**: a minimal default with data-only fields, a one-line command header, cv2-generated command badges and a custom application emoji for every command. Operators can switch themes, colors and layout with `.appearance`.
 - **Runs on a Windows laptop** with Python only. No Linux, Docker, WSL or cloud account required.
 
 > **Responsible use.** This is a research and defensive-security tool. Query only
@@ -124,8 +124,12 @@ unapproved users are denied before any lookup runs.
 
 ### Appearance
 
-The default style is deliberately plain: no numbered sections, no pipeline
-block, and no emoji status markers. Owners can change it without editing code:
+The default is minimal: no author line, title block, summary, pipeline, checks,
+risk bar, source list or footer. Each dossier opens with its custom command emoji,
+keeps the data fields and only surfaces failed checks as warnings. A 128×128
+OpenCV badge is generated for every command and also uploaded as an
+application-owned Discord emoji, so it works in servers, DMs and group DMs.
+Owners can change the style without editing code:
 
 ```text
 .appearance                              show the current settings
@@ -135,6 +139,7 @@ block, and no emoji status markers. Owners can change it without editing code:
 .appearance set numbers on|off
 .appearance set icons on|off
 .appearance set pipeline on|off
+.appearance set minimal on|off
 .appearance set thumbnails on|off
 .appearance set checks text|emoji
 .appearance set summary on|off
@@ -147,11 +152,16 @@ block, and no emoji status markers. Owners can change it without editing code:
 .appearance reset
 ```
 
-`clean` is the default: no descriptive summary, no numbered sections, no
-pipeline block. `classic` restores the summary, numbered sections and pipeline
-steps. `mono` removes the author line, summary and emoji, and uses a slate
-accent. `neon` restores the vivid full-detail look. Settings persist in
-`data/osint.sqlite3`.
+`clean` is the default minimal layout. `classic` restores the author line,
+title, summary, check blocks, risk bar, footer and numbered sections. `mono` is
+minimal with a slate accent. `neon` restores the vivid full-detail look. Set
+`minimal off` to bring the older layout back without switching themes. Settings
+persist in `data/osint.sqlite3`.
+
+The first start after deploying imports `opencv-python-headless`, creates one
+badge per command and uploads the missing ones as application emojis in the
+background. Later starts only fetch the existing IDs. If Discord or OpenCV is
+unavailable, dossiers still render with their data and attached badge thumbnail.
 
 ---
 

@@ -141,14 +141,6 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
             target=raw,
             summary=clip(description, 700),
         )
-        embed.metrics(
-            [
-                ("CVSS", f"{metrics.get('score') or '—'} {metrics.get('severity') or ''}".strip()),
-                ("EPSS", f"{float(epss['epss']) * 100:.2f}%" if epss else "—"),
-                ("KEV", "listed" if kev_entry else "not listed"),
-                ("CPE", cpe_count),
-            ]
-        )
         embed.kv(
             "RECORD",
             {

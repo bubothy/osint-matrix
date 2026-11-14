@@ -102,6 +102,7 @@ class OsintBot(commands.Bot):
         self.launch_time: float = time.time()
         self.prefix_cache: dict[int, str] = {}
         self.command_errors: int = 0
+        self._emoji_task: asyncio.Task[None] | None = None
 
     # ── lifecycle ────────────────────────────────────────────────────────
 
@@ -130,7 +131,19 @@ class OsintBot(commands.Bot):
         self.tree.interaction_check = self._tree_check
         await self.sync_commands(verbose=False)
 
+    async def sync_emojis(self) -> None:
+        """Create or fetch the application-owned badge for every command."""
+        try:
+            from core.emoji_sync import sync
+
+            known, created = await sync(self)
+            LOG.info("command badges ready: %d existing, %d new", known, created)
+        except Exception:  # noqa: BLE001 - badges must never stop the bot
+            LOG.exception("command badge sync failed")
+
     async def close(self) -> None:
+        if self._emoji_task is not None and not self._emoji_task.done():
+            self._emoji_task.cancel()
         try:
             await self.net.close()
         except Exception:  # noqa: BLE001 - shutdown must not raise
@@ -352,6 +365,8 @@ class OsintBot(commands.Bot):
             await self.change_presence(activity=activity, status=discord.Status.online)
         except discord.HTTPException:
             pass
+        if self._emoji_task is None or self._emoji_task.done():
+            self._emoji_task = asyncio.create_task(self.sync_emojis())
 
     async def on_command_completion(self, ctx: commands.Context) -> None:
         if ctx.command is None:
