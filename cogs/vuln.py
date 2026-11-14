@@ -141,6 +141,14 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
             target=raw,
             summary=clip(description, 700),
         )
+        embed.metrics(
+            [
+                ("CVSS", f"{metrics.get('score') or '—'} {metrics.get('severity') or ''}".strip()),
+                ("EPSS", f"{float(epss['epss']) * 100:.2f}%" if epss else "—"),
+                ("KEV", "listed" if kev_entry else "not listed"),
+                ("CPE", cpe_count),
+            ]
+        )
         embed.kv(
             "RECORD",
             {
@@ -236,8 +244,13 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
                 (entry.get("value") for entry in vuln.get("descriptions") or [] if entry.get("lang") == "en"), ""
             )
             rows.append(
-                f"{vuln.get('id', '?')}  {str(metrics.get('score') or '-'):>4}  "
-                f"{str(metrics.get('severity') or '-'):8}  {str(vuln.get('published') or '')[:10]}  {clip(description, 90)}"
+                (
+                    vuln.get("id", "?"),
+                    metrics.get("score") or "-",
+                    metrics.get("severity") or "-",
+                    str(vuln.get("published") or "")[:10],
+                    clip(description, 90),
+                )
             )
         embed = Intel(
             category="vuln",
@@ -246,7 +259,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
             target=clip(keyword, 80),
             summary=f"NVD reports {num(payload.get('totalResults'))} matches. The newest page is shown; refine the keyword for precision.",
         )
-        embed.code("RESULTS", "\n".join(rows), lang="yaml")
+        embed.table("RESULTS", ["CVE", "CVSS", "SEVERITY", "PUBLISHED", "DESCRIPTION"], rows)
         embed.kv(
             "QUERY",
             {
@@ -355,11 +368,15 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
         rows = []
         for item in matches[:10]:
             rows.append(
-                f"{item.get('cveID')}  {str(item.get('dateAdded')):10}  due {str(item.get('dueDate')):10}  "
-                f"{clip(item.get('vendorProject') + ' ' + item.get('product'), 34)}  "
-                f"ransomware={item.get('knownRansomwareCampaignUse')}"
+                (
+                    item.get("cveID"),
+                    str(item.get("dateAdded")),
+                    str(item.get("dueDate")),
+                    clip(str(item.get("vendorProject")) + " " + str(item.get("product")), 34),
+                    item.get("knownRansomwareCampaignUse"),
+                )
             )
-        embed.code("CATALOGUE MATCHES", "\n".join(rows), lang="yaml")
+        embed.table("CATALOGUE MATCHES", ["CVE", "ADDED", "DUE", "PRODUCT", "RANSOMWARE"], rows)
         embed.kv(
             "CATALOGUE",
             {
@@ -529,15 +546,10 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
         )
         embed.checks("METRICS", [(None, f"{key} = {value}", label) for key, value, label in rows])
         embed.risk(score * 10, name="SEVERITY", verdict=severity)
-        embed.code(
+        embed.table(
             "INTERPRETATION",
-            f"Attack vector      {rows[0][2]}\n"
-            f"Complexity         {rows[1][2]}\n"
-            f"Privileges needed  {rows[2][2]}\n"
-            f"User interaction   {rows[3][2]}\n"
-            f"Scope              {rows[4][2]}\n"
-            f"Impact C/I/A       {rows[5][2]} / {rows[6][2]} / {rows[7][2]}",
-            lang="yaml",
+            ["METRIC", "VALUE"],
+            [(label, value) for _, value, label in rows],
         )
         embed.source("local computation")
         await embed.send(ctx)
@@ -678,9 +690,12 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
             page = result.get("page") or {}
             verdict = ((result.get("verdicts") or {}).get("overall") or {})
             rows.append(
-                f"{str((result.get('task') or {}).get('time') or '')[:10]:10}  "
-                f"score={str(verdict.get('score', '-')):>3}  malicious={str(verdict.get('malicious', '-')):5}  "
-                f"{clip(page.get('domain') or page.get('url') or '?', 40)}"
+                (
+                    str((result.get("task") or {}).get("time") or "")[:10],
+                    verdict.get("score", "-"),
+                    verdict.get("malicious", "-"),
+                    clip(page.get("domain") or page.get("url") or "?", 40),
+                )
             )
         embed = Intel(
             category="vuln",
@@ -689,7 +704,7 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
             target=indicator,
             summary="urlscan.io scans pages in a real browser and records every request. Search is passive; only submitting is an action.",
         )
-        embed.code("RECENT SCANS", "\n".join(rows), lang="yaml")
+        embed.table("RECENT SCANS", ["DATE", "SCORE", "MALICIOUS", "TARGET"], rows)
         embed.kv(
             "CORPUS",
             {
@@ -856,12 +871,15 @@ class Vulnerability(commands.Cog, name="Vulnerability"):
         services = []
         for banner in (payload.get("data") or [])[:8]:
             services.append(
-                f"{banner.get('port'):>5}  {clip(str(banner.get('transport', '?')), 4):4}  "
-                f"{clip(str(banner.get('product') or banner.get('module') or '?'), 20):20}  "
-                f"{clip(str(banner.get('version') or ''), 12)}"
+                (
+                    banner.get("port"),
+                    banner.get("transport", "?"),
+                    banner.get("product") or banner.get("module") or "?",
+                    banner.get("version") or "",
+                )
             )
         if services:
-            embed.code("SERVICES", "\n".join(services), lang="yaml")
+            embed.table("SERVICES", ["PORT", "TRANSPORT", "PRODUCT", "VERSION"], services)
         embed.risk(min(100, len(payload.get("vulns") or {}) * 12), name="EXPOSURE INDEX")
         embed.source("Shodan")
         await embed.send(ctx)

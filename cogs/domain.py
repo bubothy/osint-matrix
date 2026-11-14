@@ -253,10 +253,10 @@ class Domain(commands.Cog, name="Domain"):
                     "PTR": (await self._ptr(address)) or "none",
                 }
             )
-        embed.code(
+        embed.table(
             "ANSWERS",
-            "\n".join(f"{row['Address']:16} TTL {str(row['TTL']):>6}  {clip(row['PTR'], 48)}" for row in rows),
-            lang="yaml",
+            ["ADDRESS", "TTL", "PTR"],
+            [[row["Address"], row["TTL"] or "—", row["PTR"]] for row in rows],
         )
         embed.kv(
             "SUMMARY",
@@ -312,10 +312,10 @@ class Domain(commands.Cog, name="Domain"):
             target=domain,
             summary="IPv6 reachability matters for mail reputation, CDN routing and modern client preference.",
         )
-        embed.code(
+        embed.table(
             "ANSWERS",
-            "\n".join(f"{answer.get('data', ''):42} TTL {answer.get('TTL')}" for answer in answers[:16]),
-            lang="yaml",
+            ["ADDRESS", "TTL"],
+            [[answer.get("data", ""), answer.get("TTL") or "—"] for answer in answers[:16]],
         )
         embed.kv(
             "SUMMARY",
@@ -632,9 +632,9 @@ class Domain(commands.Cog, name="Domain"):
                 flags = parts[0] if parts else "0"
                 tag = parts[1] if len(parts) > 1 else "?"
                 value = " ".join(parts[2:]) if len(parts) > 2 else ""
-                parsed.append(f"flags={flags} tag={tag} value={value}")
-            embed.code("RECORDS", "\n".join(parsed), lang="yaml")
-            tags = {line.split("tag=")[1].split()[0] for line in parsed if "tag=" in line}
+                parsed.append((flags, tag, value))
+            embed.table("RECORDS", ["FLAGS", "TAG", "VALUE"], parsed)
+            tags = {tag for _, tag, _ in parsed}
             embed.checks(
                 "POLICY",
                 [
@@ -672,12 +672,10 @@ class Domain(commands.Cog, name="Domain"):
         for record in records:
             parts = record.split()
             if len(parts) >= 4:
-                rows.append(
-                    f"priority={parts[0]:>3} weight={parts[1]:>3} port={parts[2]:>5} target={parts[3].rstrip('.')}"
-                )
+                rows.append((parts[0], parts[1], parts[2], parts[3].rstrip(".")))
             else:
-                rows.append(record)
-        embed.code("RECORDS", "\n".join(rows), lang="yaml")
+                rows.append((record, "", "", ""))
+        embed.table("RECORDS", ["PRIORITY", "WEIGHT", "PORT", "TARGET"], rows)
         embed.kv(
             "ROUTING",
             {

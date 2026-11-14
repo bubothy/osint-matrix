@@ -167,10 +167,13 @@ class Crypto(commands.Cog, name="Crypto"):
             inline=True,
         )
         if recent:
-            embed.code(
+            embed.table(
                 "RECENT TRANSACTIONS",
-                "\n".join(f"{tx.get('txid', '?')[:64]}  {str((tx.get('status') or {}).get('block_height') or 'mempool')}" for tx in recent[:8]),
-                lang="yaml",
+                ["TXID", "BLOCK"],
+                [
+                    [clip(tx.get("txid", "?"), 32), str((tx.get("status") or {}).get("block_height") or "mempool")]
+                    for tx in recent[:8]
+                ],
             )
             embed.kv(
                 "LATEST",
@@ -495,13 +498,17 @@ class Crypto(commands.Cog, name="Crypto"):
             inline=True,
         )
         if signatures:
-            embed.code(
+            embed.table(
                 "RECENT ACTIVITY",
-                "\n".join(
-                    f"{str(entry.get('blockTime') or '')[:10]:10}  {str(entry.get('confirmationStatus') or '?'):12}  {entry.get('signature', '?')[:44]}"
+                ["BLOCK TIME", "STATUS", "SIGNATURE"],
+                [
+                    [
+                        str(entry.get("blockTime") or "")[:10],
+                        entry.get("confirmationStatus") or "?",
+                        clip(entry.get("signature", "?"), 32),
+                    ]
                     for entry in signatures[:8]
-                ),
-                lang="yaml",
+                ],
             )
             latest = signatures[0]
             embed.kv(

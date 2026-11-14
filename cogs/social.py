@@ -205,21 +205,25 @@ class Social(commands.Cog, name="Social"):
             inline=True,
         )
         embed.kv("LANGUAGE MIX", dict(sorted(languages.items(), key=lambda item: item[1], reverse=True)[:10]), inline=True)
-        embed.code(
+        embed.table(
             "MOST STARRED",
-            "\n".join(
-                f"{num(repo.get('stargazers_count')):>6}★  {clip(repo.get('name', '?'), 26):26}  {clip(repo.get('language') or '-', 12)}"
+            ["STARS", "REPO", "LANGUAGE"],
+            [
+                [num(repo.get("stargazers_count")), clip(repo.get("name", "?"), 32), clip(repo.get("language") or "-", 16)]
                 for repo in ranked[:15]
-            ),
-            lang="yaml",
+            ],
         )
-        embed.code(
+        embed.table(
             "RECENT ACTIVITY",
-            "\n".join(
-                f"{str(repo.get('pushed_at') or '')[:10]:10}  {clip(repo.get('name', '?'), 26):26}  {clip(repo.get('description') or '-', 40)}"
+            ["PUSHED", "REPO", "DESCRIPTION"],
+            [
+                [
+                    str(repo.get("pushed_at") or "")[:10],
+                    clip(repo.get("name", "?"), 32),
+                    clip(repo.get("description") or "-", 32),
+                ]
                 for repo in sorted(repos, key=lambda repo: str(repo.get("pushed_at") or ""), reverse=True)[:10]
-            ),
-            lang="yaml",
+            ],
         )
         embed.source("api.github.com")
         await embed.send(ctx)

@@ -167,6 +167,19 @@ class AppearanceCog(commands.Cog, name="Appearance"):
             {"TLS": "1.3", "Latency": "8 ms", "Reverse DNS": "one.one.one.one"},
             inline=True,
         )
+        embed.table(
+            "SAMPLE ANSWERS",
+            ["ADDRESS", "TTL", "PTR"],
+            [
+                ["104.16.132.229", 300, "one.one.one.one"],
+                ["104.16.133.229", 300, "one.one.one.one"],
+            ],
+        )
+        embed.code(
+            "SAMPLE RAW",
+            '{\n  "status": "success",\n  "country": "Australia",\n  "asn": 13335\n}',
+            lang="json",
+        )
         embed.checks(
             "CHECKS",
             [

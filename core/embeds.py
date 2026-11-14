@@ -76,6 +76,28 @@ def _user_icon(ctx: Any) -> str | None:
 
 
 _FIELD_PREFIX = re.compile(r"^\d{2}\s{1,2}(?:▸\s+)?")
+_FENCE = re.compile(r"^```([A-Za-z0-9_+-]*)\n(.*)\n```$", re.DOTALL)
+_LANGUAGE = re.compile(r"[^A-Za-z0-9_+-]")
+
+
+def _field_value(value: Any, limit: int = 1024) -> str:
+    """Clip a field value without destroying intentional code fences."""
+    if value is None or value == "":
+        return "—"
+    text = str(value)
+    match = _FENCE.match(text)
+    if match is None:
+        return clip(text, limit)
+    language, body = match.groups()
+    opening = f"```{language}\n"
+    if len(text) <= limit:
+        return text
+    available = max(0, limit - len(opening) - 4)
+    return f"{opening}{body[:available].rstrip()}\n```"
+
+
+def _language(value: str) -> str:
+    return _LANGUAGE.sub("", value or "")[:20]
 
 
 def _field_label(index: int, name: Any) -> str:
@@ -148,8 +170,15 @@ class Intel:
         if len(self.embed.fields) >= 24:
             return self
         self._section += 1
-        rendered = clip(value, 1024) if value not in (None, "") else "—"
-        self.embed.add_field(name=_field_label(self._section, name), value=rendered, inline=inline)
+        if _FENCE.match(str(value)):
+            inline = False
+        self.embed.add_field(name=_field_label(self._section, name), value=_field_value(value, 1024), inline=inline)
+        return self
+
+    def metrics(self, items: Sequence[tuple[str, Any]], *, inline: bool = True) -> "Intel":
+        """Add a compact row of labelled values, rendered inline."""
+        for label, value in list(items)[:6]:
+            self.field(label, f"`{clip(value, 120)}`", inline=inline)
         return self
 
     def kv(self, name: str, pairs: Mapping[str, Any] | Sequence[tuple[str, Any]], *, inline: bool = True, lang: str = "ini") -> "Intel":
@@ -160,7 +189,45 @@ class Intel:
 
     def code(self, name: str, value: Any, *, lang: str = "json", inline: bool = False) -> "Intel":
         body = clip(str(value), 980)
-        return self.field(f"▸ {name}", f"```{lang}\n{body}\n```", inline=inline)
+        return self.field(f"▸ {name}", f"```{_language(lang)}\n{body}\n```", inline=inline)
+
+    def table(
+        self,
+        name: str,
+        headers: Sequence[str],
+        rows: Sequence[Sequence[Any]],
+        *,
+        inline: bool = False,
+        lang: str = "ini",
+        max_column: int = 32,
+    ) -> "Intel":
+        """Render a fixed-width table inside a working Discord code block."""
+        def cell(item: Any) -> str:
+            if item is None:
+                return "—"
+            return str(item).replace("\r", " ").replace("\n", " ")
+
+        head = [cell(item) for item in headers]
+        body = [[cell(item) for item in row] for row in rows]
+        widths: list[int] = []
+        for index, title in enumerate(head):
+            width = len(title)
+            for row in body:
+                if index < len(row):
+                    width = max(width, len(row[index]))
+            widths.append(min(width, max_column))
+
+        def fit(value: str, width: int) -> str:
+            return clip(value, width).ljust(width)
+
+        lines = ["  ".join(fit(title, widths[index]) for index, title in enumerate(head))]
+        if body:
+            lines.append("  ".join("─" * width for width in widths))
+        for row in body:
+            lines.append(
+                "  ".join(fit(row[index] if index < len(row) else "", widths[index]) for index in range(len(head)))
+            )
+        return self.code(name, "\n".join(lines), lang=lang, inline=inline)
 
     def steps(self, items: Iterable[Any], *, name: str = "ANALYSIS PIPELINE", inline: bool = False) -> "Intel":
         if name == "ANALYSIS PIPELINE" and not appearance.get().pipeline:
@@ -330,7 +397,9 @@ def notice(
         author = f"{glyph}  {cfg.brand}" if cfg.icons else cfg.brand
         embed.set_author(name=clip(author, 256))
     for index, (name, value, inline) in enumerate(fields, 1):
-        embed.add_field(name=_field_label(index, name), value=clip(value, 1024) or "—", inline=inline)
+        if _FENCE.match(str(value)):
+            inline = False
+        embed.add_field(name=_field_label(index, name), value=_field_value(value, 1024), inline=inline)
     if footer:
         embed.set_footer(text=clip(footer, 2048))
     elif cfg.footer:
@@ -395,7 +464,7 @@ def paginate(
         embed = base.copy()
         start = len(embed.fields) + 1
         for offset, (name, value) in enumerate(group, start):
-            embed.add_field(name=_field_label(offset, name), value=clip(value, 1024) or "—", inline=False)
+            embed.add_field(name=_field_label(offset, name), value=_field_value(value, 1024), inline=False)
         suffix = title_suffix.format(page=page_index, total=len(groups))
         embed.title = clip(f"{base.title or ''}{suffix}", 250)
         pages.append(embed)

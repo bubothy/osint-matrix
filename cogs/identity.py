@@ -292,10 +292,14 @@ class Identity(commands.Cog, name="Identity"):
         rows = []
         for breach in sorted(breaches, key=lambda item: str(item.get("BreachDate")), reverse=True)[:8]:
             rows.append(
-                f"{str(breach.get('BreachDate'))[:10]:10}  {clip(breach.get('Name', '?'), 22):22}  "
-                f"{num(breach.get('PwnCount') or 0):>12}  {clip(breach.get('Domain') or '-', 26)}"
+                (
+                    str(breach.get("BreachDate"))[:10],
+                    clip(breach.get("Name", "?"), 32),
+                    num(breach.get("PwnCount") or 0),
+                    clip(breach.get("Domain") or "-", 32),
+                )
             )
-        embed.code("BREACH TIMELINE", "\n".join(rows), lang="yaml")
+        embed.table("BREACH TIMELINE", ["DATE", "BREACH", "RECORDS", "DOMAIN"], rows)
         descriptions = "\n\n".join(
             f"**{breach.get('Title')}** ({breach.get('BreachDate')}) — {clip(breach.get('Description') or '', 260)}"
             for breach in breaches[:3]

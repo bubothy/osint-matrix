@@ -79,6 +79,20 @@ class Network(commands.Cog, name="Network"):
         return data
 
     @staticmethod
+    def _address_metrics(embed: Intel, data: dict[str, Any]) -> None:
+        conn = data.get("connection") or {}
+        security = data.get("security") or {}
+        flags = [name for name in ("proxy", "vpn", "tor", "hosting") if security.get(name)]
+        embed.metrics(
+            [
+                ("ASN", f"AS{conn.get('asn')}" if conn.get("asn") else "—"),
+                ("Country", data.get("country_code") or data.get("country") or "—"),
+                ("Network", conn.get("org") or conn.get("isp") or "—"),
+                ("Signals", ", ".join(flags) or "none"),
+            ]
+        )
+
+    @staticmethod
     def _address_panel(embed: Intel, data: dict[str, Any]) -> None:
         conn = data.get("connection") or {}
         tz = data.get("timezone") or {}
@@ -225,6 +239,7 @@ class Network(commands.Cog, name="Network"):
                 "anonymity signals and forward-confirmed reverse DNS."
             ),
         )
+        self._address_metrics(embed, data)
         self._address_panel(embed, data)
         await self._ptr_panel(embed, raw)
         embed.steps(
@@ -329,6 +344,7 @@ class Network(commands.Cog, name="Network"):
             target=address,
             summary="The public address this host presents to the internet. Useful for allow-listing the bot or verifying a VPN egress.",
         )
+        self._address_metrics(embed, data)
         self._address_panel(embed, data)
         embed.steps(
             [
@@ -718,9 +734,9 @@ class Network(commands.Cog, name="Network"):
             },
             inline=True,
         )
-        embed.code("IPv4 SAMPLE", "\n".join(v4[:18]) or "none", lang="yaml")
+        embed.table("IPv4 SAMPLE", ["#", "PREFIX"], [[index, prefix] for index, prefix in enumerate(v4[:18], 1)])
         if v6:
-            embed.code("IPv6 SAMPLE", "\n".join(v6[:12]), lang="yaml")
+            embed.table("IPv6 SAMPLE", ["#", "PREFIX"], [[index, prefix] for index, prefix in enumerate(v6[:12], 1)])
         embed.steps(
             [
                 "Requested announced prefixes from RIPEstat",
@@ -784,14 +800,20 @@ class Network(commands.Cog, name="Network"):
             },
             inline=True,
         )
-        embed.code(
+        embed.table(
             "TOP BY VISIBILITY",
-            "\n".join(
-                f"AS{int(item['asn']):<7} {str(item.get('type') or '?'):9} power={int(item.get('power') or 0):<5} "
-                f"v4={int(item.get('v4_peers') or 0):<4} v6={int(item.get('v6_peers') or 0):<3} {clip(names.get(int(item['asn']), 'unknown'), 34)}"
+            ["ASN", "TYPE", "POWER", "V4", "V6", "HOLDER"],
+            [
+                [
+                    f"AS{int(item['asn'])}",
+                    item.get("type") or "?",
+                    int(item.get("power") or 0),
+                    int(item.get("v4_peers") or 0),
+                    int(item.get("v6_peers") or 0),
+                    clip(names.get(int(item["asn"]), "unknown"), 32),
+                ]
                 for item in top
-            ),
-            lang="yaml",
+            ],
         )
         embed.steps(
             [
@@ -970,7 +992,7 @@ class Network(commands.Cog, name="Network"):
         )
         if response.history:
             embed.steps(response.history + [response.url], name="REDIRECT CHAIN")
-        embed.code("HEADERS", "\n".join(f"{key}: {value}" for key, value in sorted(response.headers.items())), lang="yaml")
+        embed.table("HEADERS", ["HEADER", "VALUE"], sorted(response.headers.items()))
         embed.source("direct HTTP")
         await embed.send(ctx)
 
