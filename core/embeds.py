@@ -139,7 +139,7 @@ class Intel:
         if self.target:
             title = f"{command}  ·  {clip(self.target, 140)}"
         self.embed.title = clip(title, 250)
-        if summary:
+        if summary and cfg.summary:
             self.embed.description = clip(summary, 4000)
 
     # ── content ──────────────────────────────────────────────────────────

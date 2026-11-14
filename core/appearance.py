@@ -35,6 +35,7 @@ THEMES: dict[str, dict[str, Any]] = {
         "icons": False,
         "pipeline": False,
         "checks": "text",
+        "summary": False,
         "author": True,
         "compact": True,
         "accent": None,
@@ -45,6 +46,7 @@ THEMES: dict[str, dict[str, Any]] = {
         "icons": True,
         "pipeline": True,
         "checks": "emoji",
+        "summary": True,
         "author": True,
         "compact": False,
         "accent": None,
@@ -55,6 +57,7 @@ THEMES: dict[str, dict[str, Any]] = {
         "icons": False,
         "pipeline": False,
         "checks": "text",
+        "summary": False,
         "author": False,
         "compact": True,
         "accent": 0x64748B,
@@ -65,6 +68,7 @@ THEMES: dict[str, dict[str, Any]] = {
         "icons": True,
         "pipeline": True,
         "checks": "emoji",
+        "summary": True,
         "author": True,
         "compact": False,
         "accent": None,
@@ -97,6 +101,7 @@ class Appearance:
     pipeline: bool = False
     thumbnails: bool = True
     checks: str = "text"
+    summary: bool = False
     author: bool = True
     compact: bool = True
 
@@ -162,7 +167,7 @@ def set_option(key: str, raw: Any) -> str:
         _current.accent = parse_colour(raw)
         _current.theme = "custom"
         return "Accent colour reset." if _current.accent is None else f"Accent set to `#{_current.accent:06X}`."
-    if key in {"numbers", "icons", "pipeline", "thumbnails", "author", "compact"}:
+    if key in {"numbers", "icons", "pipeline", "thumbnails", "summary", "author", "compact"}:
         setattr(_current, key, _bool(raw, key=key))
         _current.theme = "custom"
         state = "on" if getattr(_current, key) else "off"
@@ -176,7 +181,7 @@ def set_option(key: str, raw: Any) -> str:
         return f"Check style set to **{value}**."
     raise ValueError(
         "Unknown option. Use `brand`, `footer`, `accent`, `numbers`, `icons`, "
-        "`pipeline`, `thumbnails`, `checks`, `author` or `compact`."
+        "`pipeline`, `thumbnails`, `checks`, `summary`, `author` or `compact`."
     )
 
 
@@ -216,6 +221,7 @@ def snapshot() -> dict[str, Any]:
         "pipeline": _current.pipeline,
         "thumbnails": _current.thumbnails,
         "checks": _current.checks,
+        "summary": _current.summary,
         "author": _current.author,
         "compact": _current.compact,
     }
@@ -243,7 +249,7 @@ def apply_payload(payload: Any) -> None:
             for key, value in colors.items()
             if str(key) in CATEGORIES and isinstance(value, int) and 0 <= value <= 0xFFFFFF
         }
-    for key in ("numbers", "icons", "pipeline", "thumbnails", "author", "compact"):
+    for key in ("numbers", "icons", "pipeline", "thumbnails", "summary", "author", "compact"):
         if isinstance(payload.get(key), bool):
             setattr(_current, key, payload[key])
     if payload.get("checks") in {"text", "emoji"}:

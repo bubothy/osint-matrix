@@ -40,6 +40,7 @@ class AppearanceCog(commands.Cog, name="Appearance"):
             ("PIPELINE", ON_OFF[cfg.pipeline], True),
             ("THUMBNAILS", ON_OFF[cfg.thumbnails], True),
             ("CHECKS", cfg.checks, True),
+            ("SUMMARY", ON_OFF[cfg.summary], True),
             ("AUTHOR LINE", ON_OFF[cfg.author], True),
             ("FOOTER", cfg.footer or "—", True),
             ("COLOR OVERRIDES", colors, False),
@@ -113,7 +114,7 @@ class AppearanceCog(commands.Cog, name="Appearance"):
         if not option or value is None:
             raise UsageError(
                 "Use `.appearance set <option> <value>`. Options: brand, footer, accent, "
-                "numbers, icons, pipeline, thumbnails, checks, author, compact."
+                "numbers, icons, pipeline, thumbnails, checks, summary, author, compact."
             )
         try:
             summary = style.set_option(option, value)

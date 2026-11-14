@@ -137,6 +137,7 @@ block, and no emoji status markers. Owners can change it without editing code:
 .appearance set pipeline on|off
 .appearance set thumbnails on|off
 .appearance set checks text|emoji
+.appearance set summary on|off
 .appearance set author on|off
 .appearance set compact on|off
 .appearance color network #4A90E2
@@ -146,9 +147,11 @@ block, and no emoji status markers. Owners can change it without editing code:
 .appearance reset
 ```
 
-`clean` is the default, `classic` restores numbered sections and pipeline
-steps, `mono` removes the author line and uses a slate accent, and `neon`
-restores the vivid full-detail look. Settings persist in `data/osint.sqlite3`.
+`clean` is the default: no descriptive summary, no numbered sections, no
+pipeline block. `classic` restores the summary, numbered sections and pipeline
+steps. `mono` removes the author line, summary and emoji, and uses a slate
+accent. `neon` restores the vivid full-detail look. Settings persist in
+`data/osint.sqlite3`.
 
 ---
 
