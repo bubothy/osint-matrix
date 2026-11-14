@@ -920,16 +920,38 @@ class Social(commands.Cog, name="Social"):
             inline=True,
         )
         embed.text("DESCRIPTION", clip(detail.get("description") or "no description", 500), inline=False)
+        headshot = None
+        avatar = None
+        try:
+            assets = await self.net.get_json(
+                "https://thumbnails.roblox.com/v1/users/avatar-headshot",
+                params={"userIds": user_id, "size": "420x420", "format": "Png"},
+                cache_ttl=600,
+            )
+            rows = assets.get("data") or []
+            if rows:
+                headshot = rows[0].get("imageUrl")
+            assets = await self.net.get_json(
+                "https://thumbnails.roblox.com/v1/users/avatar",
+                params={"userIds": user_id, "size": "420x420", "format": "Png"},
+                cache_ttl=600,
+            )
+            rows = assets.get("data") or []
+            if rows:
+                avatar = rows[0].get("imageUrl")
+        except IntelError:
+            pass
         embed.kv(
             "ASSETS",
             {
                 "Profile": f"https://www.roblox.com/users/{user_id}/profile",
-                "Headshot": f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={user_id}&size=420x420&format=Png",
-                "Avatar": f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=420x420&format=Png",
+                "Headshot": headshot or "unavailable",
+                "Avatar": avatar or "unavailable",
             },
             inline=False,
         )
-        embed.thumbnail(f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={user_id}&size=420x420&format=Png")
+        if headshot:
+            embed.thumbnail(headshot)
         embed.source("users.roblox.com")
         await embed.send(ctx)
 

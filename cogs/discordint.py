@@ -508,7 +508,7 @@ class DiscordIntel(commands.Cog, name="Discord"):
                 "Guild ID": payload.get("guild_id"),
                 "Application": payload.get("application_id"),
                 "Token present": bool(payload.get("token")),
-                "URL": f"https://discord.com/api/webhooks/{payload.get('id')}/…",
+                "Endpoint": "token withheld",
             },
             inline=True,
         )

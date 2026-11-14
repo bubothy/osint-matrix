@@ -11,7 +11,7 @@ import discord
 from discord.ext import commands
 
 from config import OPTIONAL_KEYS, settings
-from core import emojis
+from core import emojis, v2
 from core.checks import owner_only
 from core.embeds import notice, respond
 from core.errors import UsageError
@@ -36,6 +36,8 @@ CATEGORY_ORDER = [
     ("discord", "DISCORD", "Snowflakes, invites, guild and asset intelligence"),
     ("vuln", "VULNERABILITY", "CVEs, KEV, EPSS, CWE, malware and reputation"),
     ("crypto", "CRYPTO", "Public ledger address and transaction intelligence"),
+    ("toolkit", "TOOLKIT", "Encoders, hashes, address arithmetic and text utilities"),
+    ("generator", "GENERATOR", "Synthetic emails, secrets and fixture data"),
 ]
 
 SOURCE_REGISTRY: list[tuple[str, str, str]] = [
@@ -154,9 +156,12 @@ class Admin(commands.Cog, name="System"):
             )
             if not names:
                 continue
+            value = f'{blurb}\n' + clip(' '.join(emojis.label(name) for name in names), 1000)
+            if len(names) > 30:
+                value += f'\n-# run `.commands {key}` for the full list'
             embed.add_field(
                 name=f'▸ {label}  ·  {len(names)} commands',
-                value=f'{blurb}\n' + clip(' '.join(emojis.label(name) for name in names), 1000),
+                value=value,
                 inline=False,
             )
         system = sorted(
@@ -233,6 +238,8 @@ class Admin(commands.Cog, name="System"):
             "discord": "discord",
             "vuln": "vuln",
             "crypto": "crypto",
+            "toolkit": "tools",
+            "generator": "gen",
         }.get(category, "net")
 
     @commands.command(name="commands", aliases=["cmds", "list"], usage="[category]")
@@ -700,20 +707,20 @@ class Admin(commands.Cog, name="System"):
     async def shutdown(self, ctx: commands.Context) -> None:
         """Stop the bot process."""
         await ack(ctx)
-        view = Confirm(author_id=ctx.author.id, confirm_label="Shut down")
         prompt = notice("CONFIRM SHUTDOWN", "This stops the bot process. Restart it with `run.bat`.", category="error")
+        view = Confirm(author_id=ctx.author.id, confirm_label="Shut down", prompt=prompt)
         message = await respond(ctx, prompt, view=view)
         await view.wait()
         if view.value:
             await self.bot.store.audit(ctx.author.id, "shutdown", None, None)
             await self.bot.close()
         elif message is not None:
-            await message.edit(embed=notice("SHUTDOWN CANCELLED", "Still running.", category="admin"), view=None)
+            await message.edit(view=v2.text_layout("Shutdown cancelled. Still running."))
 
     async def _notify(self, user_id: int, text: str) -> None:
         try:
             user = self.bot.get_user(user_id) or await self.bot.fetch_user(user_id)
-            await user.send(embed=notice("OSINT MATRIX", text, category="admin"))
+            await user.send(view=v2.build_layout(notice("OSINT MATRIX", text, category="admin")))
         except (discord.HTTPException, AttributeError):
             pass
 

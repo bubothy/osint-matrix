@@ -126,7 +126,7 @@ OPTIONAL_KEYS: tuple[OptionalKey, ...] = (
         "URLSCAN_API_KEY",
         "urlscan.io",
         "Submitting new scans. Passive result search works without a key.",
-        "https://urlscan.io/user/apikey",
+        "https://urlscan.io/about-api",
     ),
     OptionalKey(
         "ABUSECH_AUTH_KEY",

@@ -5,10 +5,11 @@ feel of Heist / Bleed / Greed — but built entirely around **legitimate, docume
 OSINT sources**: DNS, WHOIS/RDAP, certificate transparency, public APIs and public
 ledger data.
 
-- **117 intelligence commands** across eight categories, plus **18 operator commands**.
-- **Prefix commands** (default `.`) and **slash shortcuts** (`/net`, `/domain`, `/web`, `/identity`, `/social`, `/discord`, `/vuln`, `/crypto`) in servers, bot DMs and group DMs.
+- **247 top-level commands**, or **275 routes including subcommands**: 117 intelligence lookups, 110 local toolkit operations, 22 generator operations and the operator/appearance controls.
+- **Prefix commands** (default `.`) and **slash shortcuts** (`/net`, `/domain`, `/web`, `/identity`, `/social`, `/discord`, `/vuln`, `/crypto`, `/tools`) in servers, bot DMs and group DMs.
 - **Private by design**: only owners and explicitly approved Discord IDs can run anything.
-- **Readable embeds**: a minimal default with data-only fields, a one-line command header, cv2-generated command badges and a custom application emoji for every command. Operators can switch themes, colors and layout with `.appearance`.
+- **Components V2 output**: dossiers are sent as monochrome containers with white command badges, linked references, next-lookup pivots and V2 pagination. No traditional embed payload is sent.
+- **One white application emoji per command**, generated locally with OpenCV on a dark rounded tile. The full set is uploaded once and reused on later boots.
 - **Runs on a Windows laptop** with Python only. No Linux, Docker, WSL or cloud account required.
 
 > **Responsible use.** This is a research and defensive-security tool. Query only
@@ -233,9 +234,13 @@ core/
   tls.py                socket-level certificate inspection
   signatures.py         tech/WAF/CDN/hash/mail/username tables
   cvss.py               CVSS v3.1 base score calculator
-  ui.py                 pagination and confirmation views
+  v2.py                 Components V2 renderer and automatic pagination
+  ui.py                 V2 pagination and confirmation views
   command.py            the @intel decorator (metadata + cooldowns)
-cogs/                   one module per intelligence category
+  visuals.py            monochrome cv2 command badges
+  emojis.py             application emoji registry and per-command markup
+  emoji_sync.py         one-time badge upload and reconciliation
+cogs/                   one module per intelligence category, plus toolkit and generator
 data/osint.sqlite3      created at first run (gitignored)
 logs/bot.log            rotating log (gitignored)
 ```
@@ -260,7 +265,7 @@ async def mycmd(self, ctx, target: str = None):
     await embed.send(ctx)
 ```
 
-Categories are wired into `COGS` in `bot.py` and `GROUPS` in `cogs/dispatch.py`.
+Categories are wired into `COGS` in `bot.py` and `GROUPS` in `cogs/dispatch.py`. Generator operations live under the `gen` group: `.gen email`, `.gen password 32`, `.gen uuid` and similar. The toolkit covers encoders, hashes, JSON, CIDR arithmetic, HTTP metadata, dates, numbers, colours and text transforms.
 
 ---
 

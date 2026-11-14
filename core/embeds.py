@@ -8,17 +8,74 @@ summary, checks, risk bar and source/latency footer.
 
 from __future__ import annotations
 
+import copy
 import io
 import re
 import time
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
-from urllib.parse import quote
 
 import discord
 
 from core import appearance, emojis
 from core.utils import bar, clip, is_ip, kv_block, normalize_host, risk_label, unique, utcnow
+
+# Home pages only. Dynamic deep links are added by the commands that know the
+# record exists, so a reference cannot become a 404 just because an account or
+# identifier was not found.
+SOURCE_LINKS: dict[str, str] = {
+    "ipwho.is": "https://ipwho.is/",
+    "cloudflare doh": "https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/",
+    "google doh": "https://developers.google.com/speed/public-dns/docs/doh",
+    "quad9": "https://www.quad9.net/",
+    "adguard": "https://adguard-dns.io/",
+    "ripestat": "https://stat.ripe.net/",
+    "rdap": "https://rdap.org/",
+    "crt.sh": "https://crt.sh/",
+    "cert spotter": "https://sslmate.com/certspotter/",
+    "nvd": "https://nvd.nist.gov/",
+    "cisa kev": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+    "epss": "https://www.first.org/epss/",
+    "cwe": "https://cwe.mitre.org/",
+    "urlscan.io": "https://urlscan.io/",
+    "virustotal": "https://www.virustotal.com/",
+    "shodan": "https://www.shodan.io/",
+    "abuseipdb": "https://www.abuseipdb.com/",
+    "abuse.ch": "https://abuse.ch/",
+    "github": "https://github.com/",
+    "gitlab": "https://gitlab.com/",
+    "reddit": "https://www.reddit.com/",
+    "hacker news": "https://news.ycombinator.com/",
+    "npm": "https://www.npmjs.com/",
+    "pypi": "https://pypi.org/",
+    "steam": "https://steamcommunity.com/",
+    "mojang": "https://www.minecraft.net/",
+    "roblox": "https://www.roblox.com/",
+    "keybase": "https://keybase.io/",
+    "mastodon": "https://joinmastodon.org/",
+    "bluesky": "https://bsky.app/",
+    "bitcoin": "https://blockstream.info/",
+    "ethereum": "https://etherscan.io/",
+    "solana": "https://explorer.solana.com/",
+    "gravatar": "https://gravatar.com/",
+    "hibp": "https://haveibeenpwned.com/",
+    "direct http": "https://developer.mozilla.org/docs/Web/HTTP",
+    "direct tcp": "https://www.rfc-editor.org/rfc/rfc9293",
+    "direct tls handshake": "https://www.rfc-editor.org/rfc/rfc8446",
+    "local computation": "https://docs.python.org/3/library/ipaddress.html",
+    "libphonenumber offline metadata": "https://github.com/google/libphonenumber",
+}
+
+CATEGORY_PIVOTS: dict[str, tuple[str, ...]] = {
+    "network": ("rdns", "netblock", "geo", "tls"),
+    "domain": ("dns", "whois", "certificates", "propagation"),
+    "web": ("headers", "robots", "securitytxt", "tls"),
+    "identity": ("email", "username", "hash", "msisdn"),
+    "social": ("username", "github", "reddit", "profile"),
+    "discord": ("snowflake", "invite", "guild", "bot"),
+    "vuln": ("cve", "cwe", "epss", "kev"),
+    "crypto": ("btc", "eth", "sol", "tx"),
+}
 
 # category -> (colour, glyph, label)
 PALETTE: dict[str, tuple[int, str, str]] = {
@@ -30,6 +87,8 @@ PALETTE: dict[str, tuple[int, str, str]] = {
     "discord": (0x5865F2, "✦", "DISCORD INTELLIGENCE"),
     "vuln": (0xEF4444, "⚠", "VULNERABILITY INTELLIGENCE"),
     "crypto": (0x10B981, "⬡", "CRYPTO INTELLIGENCE"),
+    "toolkit": (0x475569, "⌁", "LOCAL TOOLKIT"),
+    "generator": (0x64748B, "✧", "SYNTHETIC DATA"),
     "admin": (0x64748B, "⌘", "SYSTEM CONTROL"),
     "error": (0x991B1B, "✕", "FAULT"),
     "ok": (0x22C55E, "✓", "ACKNOWLEDGED"),
@@ -233,10 +292,10 @@ class Intel:
             )
         return self.code(name, "\n".join(lines), lang=lang, inline=inline)
 
-    def steps(self, items: Iterable[Any], *, name: str = 'ANALYSIS PIPELINE', inline: bool = False) -> 'Intel':
+    def steps(self, items: Iterable[Any], *, name: str = 'TRACE', inline: bool = False) -> 'Intel':
         if appearance.get().minimal:
             return self
-        if name == 'ANALYSIS PIPELINE' and not appearance.get().pipeline:
+        if name == 'TRACE' and not appearance.get().pipeline:
             return self
         lines = [f"`{index:02d}` {clip(str(item), 190)}" for index, item in enumerate(items, 1)]
         return self.field(f"▸ {name}", "\n".join(lines) or "—", inline=inline)
@@ -313,31 +372,63 @@ class Intel:
 
     # ── finalise ─────────────────────────────────────────────────────────
 
-    def _auto_thumbnail(self) -> None:
-        """Give web/domain dossiers a favicon when a command did not set one."""
-        if appearance.get().minimal or not appearance.get().thumbnails:
+    def _add_findability(self) -> None:
+        """Add useful references and next steps without creating dead links."""
+        if getattr(self, "_findability_added", False):
             return
-        if self.embed.thumbnail.url or not self.target or self.category not in {"web", "domain"}:
+        self._findability_added = True
+        if len(self.embed.fields) >= 22:
             return
-        host = normalize_host(self.target)
-        if not host or is_ip(host) or "." not in host:
-            return
-        try:
-            self.embed.set_thumbnail(url=f"https://www.google.com/s2/favicons?domain={quote(host)}&sz=128")
-        except Exception:  # noqa: BLE001 - cosmetic only
-            pass
+
+        links: list[str] = []
+        seen: set[str] = set()
+        for source in self.sources:
+            url = SOURCE_LINKS.get(source.strip().lower())
+            if url and url not in seen:
+                links.append(f"[{source}]({url})")
+                seen.add(url)
+        if not links:
+            fallback = {
+                "network": ("ipwho.is", "https://ipwho.is/"),
+                "domain": ("crt.sh", "https://crt.sh/"),
+                "web": ("HTTP reference", "https://developer.mozilla.org/docs/Web/HTTP"),
+                "identity": ("Have I Been Pwned", "https://haveibeenpwned.com/"),
+                "vuln": ("NVD", "https://nvd.nist.gov/"),
+                "crypto": ("Blockstream", "https://blockstream.info/"),
+                "toolkit": ("Python reference", "https://docs.python.org/3/"),
+                "generator": ("Python secrets", "https://docs.python.org/3/library/secrets.html"),
+                "discord": ("Discord API", "https://discord.com/developers/docs/intro"),
+            }.get(self.category)
+            if fallback:
+                links.append(f"[{fallback[0]}]({fallback[1]})")
+        if links:
+            self.embed.add_field(name="▸ REFERENCES", value="  ·  ".join(links[:8]), inline=False)
+
+        if self.target and len(self.embed.fields) < 22:
+            commands = CATEGORY_PIVOTS.get(self.category, ())
+            if commands:
+                target = clip(str(self.target).replace("`", "'"), 80)
+                pivots = "  ·  ".join(f"`.{name} {target}`" for name in commands[:4])
+                self.embed.add_field(name="▸ NEXT LOOKUPS", value=pivots, inline=False)
 
     def finish(self, ctx: Any = None, *, source: str | None = None, elapsed_ms: float | None = None, extra: str | None = None) -> discord.Embed:
         cfg = appearance.get()
         ctx = ctx if ctx is not None else self.ctx
         if source:
             self.source(source)
-        if cfg.minimal:
-            if cfg.footer:
-                self.embed.set_footer(text=clip(cfg.footer, 2048))
-            return self.embed
-        self._auto_thumbnail()
+        self._add_findability()
         elapsed = elapsed_ms if elapsed_ms is not None else (time.perf_counter() - self.started) * 1000
+        if cfg.minimal:
+            parts = [self.command] if self.command else []
+            if self.sources:
+                parts.append("source " + " · ".join(str(item) for item in unique(self.sources)[:3]))
+            parts.append(f"{elapsed:.0f} ms")
+            parts.append(utcnow().strftime("%Y-%m-%d %H:%M UTC"))
+            if cfg.footer:
+                parts.append(cfg.footer)
+            if parts:
+                self.embed.set_footer(text=clip("  •  ".join(parts), 2048))
+            return self.embed
         parts: list[str] = []
         if ctx is not None:
             try:
@@ -396,23 +487,55 @@ async def respond(
     ctx: Any,
     embed: discord.Embed,
     *,
-    view: discord.ui.View | None = None,
+    view: discord.ui.LayoutView | None = None,
     files: list[discord.File] | None = None,
 ) -> discord.Message | None:
-    """Reply correctly whether the invocation came from chat or an interaction."""
+    """Send a Components V2 message from the embed-shaped dossier data."""
     _normalise_fields(embed)
-    kwargs: dict[str, Any] = {"embed": embed, "allowed_mentions": discord.AllowedMentions.none()}
+    from core import v2
+    from core.ui import Paginator
+
+    files = list(files or [])
     if view is not None:
-        kwargs["view"] = view
+        layout = view
+        if files and hasattr(layout, "files"):
+            layout.files = files  # type: ignore[attr-defined]
+            if hasattr(layout, "_build"):
+                layout._build()  # type: ignore[attr-defined]
+    else:
+        pages = v2.paginate_embed(embed)
+        if len(pages) > 1:
+            author_id = getattr(getattr(ctx, "author", None), "id", None)
+            layout = Paginator(pages, author_id=author_id, files=files)
+        else:
+            layout = v2.build_layout(embed, files=files)
+
+    kwargs: dict[str, Any] = {
+        "view": layout,
+        "allowed_mentions": discord.AllowedMentions.none(),
+    }
     if files:
         kwargs["files"] = files
     try:
         if getattr(ctx, "interaction", None) is not None:
-            return await ctx.send(**kwargs)
-        return await ctx.reply(mention_author=False, **kwargs)
+            message = await ctx.send(**kwargs)
+        else:
+            message = await ctx.reply(mention_author=False, **kwargs)
+        if message is not None and hasattr(layout, "message"):
+            layout.message = message  # type: ignore[attr-defined]
+        return message
     except discord.HTTPException:
+        # Keep errors readable if a client or channel rejects a V2 layout.
+        fallback: dict[str, Any] = {
+            "embed": embed,
+            "allowed_mentions": discord.AllowedMentions.none(),
+        }
+        if files:
+            fallback["files"] = files
         try:
-            return await ctx.send(**kwargs)
+            if getattr(ctx, "interaction", None) is not None:
+                return await ctx.send(**fallback)
+            return await ctx.reply(mention_author=False, **fallback)
         except discord.HTTPException:
             return None
 
@@ -502,7 +625,7 @@ def paginate(
     pages: list[discord.Embed] = []
     groups = [sections[i : i + per_page] for i in range(0, len(sections), per_page)] or [()]
     for page_index, group in enumerate(groups, 1):
-        embed = base.copy()
+        embed = copy.deepcopy(base)
         start = len(embed.fields) + 1
         for offset, (name, value) in enumerate(group, start):
             embed.add_field(name=_field_label(offset, name), value=_field_value(value, 1024), inline=False)

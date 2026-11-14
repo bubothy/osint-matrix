@@ -1,96 +1,150 @@
-"""Interactive components: pagination and confirmation."""
+"""Interactive Components V2 views: pagination and confirmation."""
 
 from __future__ import annotations
 
 from typing import Sequence
 
 import discord
+from discord import ui
+
+from core import v2
 
 
-class Paginator(discord.ui.View):
-    """Five-button paginator bound to the invoking user."""
+class Paginator(ui.LayoutView):
+    """A five-control V2 paginator bound to the invoking user."""
 
-    def __init__(self, pages: Sequence[discord.Embed], *, author_id: int | None = None, timeout: float = 240) -> None:
+    def __init__(
+        self,
+        pages: Sequence[discord.Embed],
+        *,
+        author_id: int | None = None,
+        timeout: float = 240,
+        files: Sequence[discord.File] = (),
+    ) -> None:
         super().__init__(timeout=timeout)
-        self.pages: list[discord.Embed] = list(pages) or [
-            discord.Embed(title="No results", description="Nothing to display.")
+        self.pages = list(pages) or [
+            discord.Embed(description="No results to display.")
         ]
         self.author_id = author_id
+        self.files = list(files)
         self.index = 0
         self.message: discord.Message | None = None
-        self._sync()
+        self.closed = False
+        self._build()
 
-    # ── state ────────────────────────────────────────────────────────────
+    # ── rendering ────────────────────────────────────────────────────────
 
-    @property
-    def page(self) -> discord.Embed:
-        embed = self.pages[self.index]
-        total = len(self.pages)
-        if total > 1:
-            existing = (embed.footer.text or "").split("  •  page ")[0]
-            marker = f"page {self.index + 1}/{total}"
-            embed.set_footer(text=(existing + "  •  " + marker) if existing else marker)
-        return embed
+    def _page(self) -> discord.Embed:
+        page = self.pages[self.index]
+        if len(self.pages) > 1:
+            page = page.copy()
+            try:
+                existing = page.footer.text or ""
+            except Exception:  # noqa: BLE001
+                existing = ""
+            if "part " not in existing and "page " not in existing:
+                marker = f"page {self.index + 1}/{len(self.pages)}"
+                page.set_footer(
+                    text=((existing + "  •  " + marker) if existing else marker)[:2048]
+                )
+        return page
 
-    def _sync(self) -> None:
-        last = len(self.pages) - 1
-        self.first.disabled = self.index == 0
-        self.previous.disabled = self.index == 0
-        self.next.disabled = self.index >= last
-        self.last.disabled = self.index >= last
-        self.counter.label = f"{self.index + 1}/{len(self.pages)}"
+    def _button(
+        self,
+        label: str,
+        action: str,
+        *,
+        disabled: bool = False,
+        style: discord.ButtonStyle = discord.ButtonStyle.secondary,
+    ) -> ui.Button:
+        button = ui.Button(
+            label=label,
+            style=style,
+            disabled=disabled,
+            custom_id=f"v2:{id(self)}:{action}",
+        )
+        button.callback = getattr(self, f"_on_{action}")
+        return button
 
-    async def _guard(self, interaction: discord.Interaction) -> bool:
+    def _build(self) -> None:
+        self.clear_items()
+        for item in v2.page_items(self._page(), files=self.files):
+            self.add_item(item)
+
+        row = ui.ActionRow()
+        row.add_item(
+            self._button("First", "first", disabled=self.closed or self.index == 0)
+        )
+        row.add_item(
+            self._button(
+                "Previous",
+                "previous",
+                disabled=self.closed or self.index == 0,
+            )
+        )
+        row.add_item(
+            self._button(
+                f"{self.index + 1}/{len(self.pages)}",
+                "counter",
+                disabled=True,
+            )
+        )
+        row.add_item(
+            self._button(
+                "Next",
+                "next",
+                disabled=self.closed or self.index >= len(self.pages) - 1,
+            )
+        )
+        row.add_item(
+            self._button(
+                "Last",
+                "last",
+                disabled=self.closed or self.index >= len(self.pages) - 1,
+            )
+        )
+        self.add_item(row)
+
+    # ── guards ───────────────────────────────────────────────────────────
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if self.author_id is not None and interaction.user.id != self.author_id:
             await interaction.response.send_message(
-                "This result belongs to someone else. Run the command yourself.", ephemeral=True
+                "This result belongs to someone else. Run the command yourself.",
+                ephemeral=True,
             )
             return False
         return True
 
     async def _update(self, interaction: discord.Interaction) -> None:
-        self._sync()
-        await interaction.response.edit_message(embed=self.page, view=self)
+        self._build()
+        await interaction.response.edit_message(view=self)
 
-    # ── buttons ──────────────────────────────────────────────────────────
+    async def _on_first(self, interaction: discord.Interaction) -> None:
+        self.index = 0
+        await self._update(interaction)
 
-    @discord.ui.button(emoji="⏮", style=discord.ButtonStyle.secondary)
-    async def first(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
-        if await self._guard(interaction):
-            self.index = 0
-            await self._update(interaction)
+    async def _on_previous(self, interaction: discord.Interaction) -> None:
+        self.index = max(0, self.index - 1)
+        await self._update(interaction)
 
-    @discord.ui.button(emoji="◀", style=discord.ButtonStyle.primary)
-    async def previous(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
-        if await self._guard(interaction):
-            self.index = max(0, self.index - 1)
-            await self._update(interaction)
-
-    @discord.ui.button(label="1/1", style=discord.ButtonStyle.secondary, disabled=True)
-    async def counter(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+    async def _on_counter(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
 
-    @discord.ui.button(emoji="▶", style=discord.ButtonStyle.primary)
-    async def next(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
-        if await self._guard(interaction):
-            self.index = min(len(self.pages) - 1, self.index + 1)
-            await self._update(interaction)
+    async def _on_next(self, interaction: discord.Interaction) -> None:
+        self.index = min(len(self.pages) - 1, self.index + 1)
+        await self._update(interaction)
 
-    @discord.ui.button(emoji="⏭", style=discord.ButtonStyle.secondary)
-    async def last(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
-        if await self._guard(interaction):
-            self.index = len(self.pages) - 1
-            await self._update(interaction)
-
-    @discord.ui.button(emoji="✖", style=discord.ButtonStyle.danger, row=1)
-    async def close(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
-        if await self._guard(interaction):
-            self.stop()
-            await interaction.response.edit_message(view=None)
+    async def _on_last(self, interaction: discord.Interaction) -> None:
+        self.index = len(self.pages) - 1
+        await self._update(interaction)
 
     async def on_timeout(self) -> None:
-        for child in self.children:
-            child.disabled = True  # type: ignore[attr-defined]
+        self.closed = True
+        try:
+            self._build()
+        except Exception:  # noqa: BLE001 - timeout cleanup is best effort
+            pass
         if self.message is not None:
             try:
                 await self.message.edit(view=self)
@@ -98,33 +152,74 @@ class Paginator(discord.ui.View):
                 pass
 
 
-class Confirm(discord.ui.View):
-    """Two-button destructive-action confirmation."""
+class Confirm(ui.LayoutView):
+    """A two-button confirmation that uses the same V2 renderer."""
 
-    def __init__(self, *, author_id: int, confirm_label: str = "Confirm", timeout: float = 60) -> None:
+    def __init__(
+        self,
+        *,
+        author_id: int,
+        confirm_label: str = "Confirm",
+        prompt: discord.Embed | None = None,
+        timeout: float = 60,
+    ) -> None:
         super().__init__(timeout=timeout)
         self.author_id = author_id
+        self.confirm_label = confirm_label
+        self.prompt = prompt or discord.Embed(
+            description="This action cannot be undone."
+        )
         self.value: bool | None = None
-        self.confirm.label = confirm_label
+        self.message: discord.Message | None = None
+        self._build()
+
+    def _build(self) -> None:
+        self.clear_items()
+        for item in v2.page_items(self.prompt):
+            self.add_item(item)
+        row = ui.ActionRow()
+        confirm = ui.Button(
+            label=self.confirm_label,
+            style=discord.ButtonStyle.danger,
+            custom_id=f"v2:{id(self)}:confirm",
+        )
+        confirm.callback = self._on_confirm
+        cancel = ui.Button(
+            label="Cancel",
+            style=discord.ButtonStyle.secondary,
+            custom_id=f"v2:{id(self)}:cancel",
+        )
+        cancel.callback = self._on_cancel
+        row.add_item(confirm)
+        row.add_item(cancel)
+        self.add_item(row)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author_id:
-            await interaction.response.send_message("Only the invoker can confirm this.", ephemeral=True)
+            await interaction.response.send_message(
+                "Only the invoker can confirm this.", ephemeral=True
+            )
             return False
         return True
 
-    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger)
-    async def confirm(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+    async def _on_confirm(self, interaction: discord.Interaction) -> None:
         self.value = True
         self.stop()
         await interaction.response.edit_message(
-            embed=discord.Embed(description="Confirmed.", color=0x22C55E), view=None
+            view=v2.text_layout("Confirmed.", accent=0x22C55E)
         )
 
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
-    async def cancel(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+    async def _on_cancel(self, interaction: discord.Interaction) -> None:
         self.value = False
         self.stop()
         await interaction.response.edit_message(
-            embed=discord.Embed(description="Cancelled.", color=0x64748B), view=None
+            view=v2.text_layout("Cancelled.", accent=0x64748B)
         )
+
+    async def on_timeout(self) -> None:
+        self.value = False
+        if self.message is not None:
+            try:
+                await self.message.edit(view=v2.text_layout("Confirmation expired."))
+            except discord.HTTPException:
+                pass

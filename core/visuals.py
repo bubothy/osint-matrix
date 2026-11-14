@@ -79,12 +79,76 @@ def _gradient(size: int, top: tuple[int, int, int], bottom: tuple[int, int, int]
     return np.repeat(strip[:, None, :], size, axis=1).astype(np.uint8)
 
 
-def _glyph(cv2: Any, canvas: Any, category: str, colour: tuple[int, int, int]) -> None:
+_TOOLKIT_CODE = {
+    "b64e", "b64d", "b32e", "b32d", "hexe", "hexd", "urle", "urld", "rot13",
+    "tobin", "frombin", "morse", "unmorse", "puny", "unpuny", "codepoints",
+    "fromcodepoints", "htmlenc", "htmlunesc", "urlinspect", "queryparse",
+    "querybuild",
+}
+_TOOLKIT_HASH = {
+    "md5", "sha1", "sha256", "sha512", "blake2b", "sha3", "crc32",
+    "hmacsha256", "hashident", "entropy", "passwordbits",
+}
+_TOOLKIT_TEXT = {
+    "slug", "uppercase", "lowercase", "titlecase", "swapcase", "reverse",
+    "wordcount", "charcount", "dedupe", "sortlines", "striphtml", "linenums",
+    "linewrap", "difftext", "textstats", "bytecount",
+}
+_TOOLKIT_DATA = {
+    "jsonfmt", "jsonmin", "jsonkeys", "jsonvals", "jsoncheck", "jwtinspect",
+    "jwtpayload", "jwtcheck", "csvjson", "mime",
+}
+_TOOLKIT_TIME = {"unix", "unixdate", "weekday", "duration"}
+_TOOLKIT_MATH = {
+    "baseconvert", "roman", "unroman", "gcd", "lcm", "prime", "factors",
+    "fib", "percent", "sortnums", "sum", "mean", "median", "mode", "numrange",
+}
+_TOOLKIT_COLOUR = {"hexrgb", "rgbhex", "contrast", "randomcolor"}
+_TOOLKIT_SECURITY = {"csp", "hsts", "cookieparse", "useragentparse"}
+_TOOLKIT_CHECK = {
+    "uuidcheck", "isbncheck", "luhn", "domaincheck", "emailcheck", "ipcheck",
+    "base64check",
+}
+_TOOLKIT_NETWORK = {
+    "ip2int", "int2ip", "ipv6expand", "ipv6compress", "ipclass", "ptrsuffix",
+    "macfmt", "cidrsplit", "cidrmerge", "ipv4range", "ipv6range", "cidrcontains",
+    "wildcardmask", "portmap", "protocol", "statuscode", "httpmethod",
+}
+
+
+def _toolkit_kind(command: str) -> str:
+    name = str(command).lower().strip()
+    if name.startswith("gen "):
+        name = name.split(" ", 1)[1]
+    for kind, names in (
+        ("check", _TOOLKIT_CHECK),
+        ("hash", _TOOLKIT_HASH),
+        ("time", _TOOLKIT_TIME),
+        ("colour", _TOOLKIT_COLOUR),
+        ("math", _TOOLKIT_MATH),
+        ("security", _TOOLKIT_SECURITY),
+        ("code", _TOOLKIT_CODE),
+        ("data", _TOOLKIT_DATA),
+        ("text", _TOOLKIT_TEXT),
+        ("network", _TOOLKIT_NETWORK),
+    ):
+        if name in names:
+            return kind
+    return "key"
+
+
+def _glyph(
+    cv2: Any,
+    canvas: Any,
+    category: str,
+    colour: tuple[int, int, int],
+    command: str = "",
+) -> None:
     """Draw one plain line symbol in the upper half of the tile."""
     cx, cy = 64, 45
     thick = 3
     if category == "network":
-        points = ((40, 36), (88, 36), (64, 68))
+        points = ((40, 34), (88, 34), (64, 68))
         for start, end in ((points[0], points[1]), (points[0], points[2]), (points[1], points[2])):
             cv2.line(canvas, start, end, colour, thick, cv2.LINE_AA)
         for point in points:
@@ -126,6 +190,76 @@ def _glyph(cv2: Any, canvas: Any, category: str, colour: tuple[int, int, int]) -
         cv2.polylines(canvas, [__import__("numpy").array(points, dtype="int32")], True, colour, thick, cv2.LINE_AA)
         cv2.line(canvas, (50, 47), (78, 47), colour, thick, cv2.LINE_AA)
         cv2.line(canvas, (64, 33), (64, 61), colour, thick, cv2.LINE_AA)
+    elif category == "toolkit":
+        kind = _toolkit_kind(command)
+        if kind == "code":
+            cv2.line(canvas, (47, 32), (34, 45), colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (34, 45), (47, 58), colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (81, 32), (94, 45), colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (94, 45), (81, 58), colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (72, 27), (56, 63), colour, thick, cv2.LINE_AA)
+        elif kind == "hash":
+            for x in (53, 75):
+                cv2.line(canvas, (x, 29), (x, 62), colour, thick, cv2.LINE_AA)
+            for y in (39, 52):
+                cv2.line(canvas, (41, y), (87, y), colour, thick, cv2.LINE_AA)
+        elif kind == "text":
+            for y, end in ((30, 90), (42, 76), (54, 88), (66, 66)):
+                cv2.line(canvas, (38, y), (end, y), colour, thick, cv2.LINE_AA)
+        elif kind == "data":
+            cv2.polylines(
+                canvas,
+                [__import__("numpy").array(((50, 27), (40, 35), (40, 54), (50, 63)), dtype="int32")],
+                False,
+                colour,
+                thick,
+                cv2.LINE_AA,
+            )
+            cv2.polylines(
+                canvas,
+                [__import__("numpy").array(((78, 27), (88, 35), (88, 54), (78, 63)), dtype="int32")],
+                False,
+                colour,
+                thick,
+                cv2.LINE_AA,
+            )
+        elif kind == "time":
+            cv2.circle(canvas, (64, 45), 23, colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (64, 45), (64, 31), colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (64, 45), (76, 50), colour, thick, cv2.LINE_AA)
+        elif kind == "math":
+            cv2.line(canvas, (38, 45), (58, 45), colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (48, 35), (48, 55), colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (72, 39), (88, 39), colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (72, 51), (88, 51), colour, thick, cv2.LINE_AA)
+        elif kind == "colour":
+            cv2.circle(canvas, (64, 45), 23, colour, thick, cv2.LINE_AA)
+            cv2.circle(canvas, (64, 45), 7, colour, -1, cv2.LINE_AA)
+            cv2.line(canvas, (64, 22), (64, 31), colour, thick, cv2.LINE_AA)
+        elif kind == "security":
+            shield = ((64, 23), (89, 32), (85, 60), (64, 76), (43, 60), (39, 32))
+            cv2.polylines(canvas, [__import__("numpy").array(shield, dtype="int32")], True, colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (64, 34), (64, 48), colour, thick, cv2.LINE_AA)
+            cv2.circle(canvas, (64, 56), 2, colour, -1, cv2.LINE_AA)
+        elif kind == "check":
+            cv2.line(canvas, (38, 47), (51, 59), colour, thick + 2, cv2.LINE_AA)
+            cv2.line(canvas, (51, 59), (89, 30), colour, thick + 2, cv2.LINE_AA)
+        elif kind == "network":
+            points = ((40, 34), (88, 34), (64, 68))
+            for start, end in ((points[0], points[1]), (points[0], points[2]), (points[1], points[2])):
+                cv2.line(canvas, start, end, colour, thick, cv2.LINE_AA)
+            for point in points:
+                cv2.circle(canvas, point, 5, colour, -1, cv2.LINE_AA)
+        else:
+            cv2.line(canvas, (47, 68), (72, 43), colour, thick + 1, cv2.LINE_AA)
+            cv2.circle(canvas, (75, 40), 8, colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (69, 34), (78, 43), colour, thick, cv2.LINE_AA)
+            cv2.line(canvas, (44, 71), (52, 79), colour, thick + 1, cv2.LINE_AA)
+    elif category == "generator":
+        cv2.line(canvas, (64, 22), (64, 70), colour, thick, cv2.LINE_AA)
+        cv2.line(canvas, (40, 46), (88, 46), colour, thick, cv2.LINE_AA)
+        cv2.line(canvas, (46, 28), (82, 64), colour, 2, cv2.LINE_AA)
+        cv2.line(canvas, (82, 28), (46, 64), colour, 2, cv2.LINE_AA)
     elif category == "error":
         cv2.line(canvas, (43, 25), (85, 67), colour, thick, cv2.LINE_AA)
         cv2.line(canvas, (85, 25), (43, 67), colour, thick, cv2.LINE_AA)
@@ -137,38 +271,36 @@ def _glyph(cv2: Any, canvas: Any, category: str, colour: tuple[int, int, int]) -
 
 @functools.lru_cache(maxsize=512)
 def icon_png(command: str, category: str = "admin", accent: int = _ACCENT) -> bytes:
-    """Return a 128x128 RGBA PNG for a command badge."""
+    """Return a monochrome 128x128 RGBA badge for a command."""
     import cv2
     import numpy as np
 
     digest = hashlib.sha1(str(command).encode('utf-8')).hexdigest()
-    shift = int(digest[:2], 16) % 13 - 6
-    top = tuple(max(0, min(255, value + shift)) for value in (52, 38, 28))
-    bottom = tuple(max(0, min(255, value + shift)) for value in (24, 18, 14))
+    shift = int(digest[:2], 16) % 9 - 4
+    top = tuple(max(0, min(255, value + shift)) for value in (92, 92, 92))
+    bottom = tuple(max(0, min(255, value + shift)) for value in (58, 58, 58))
     canvas = _gradient(_SIZE, top, bottom)
     mask = _mask(_SIZE, 26)
 
-    accent_bgr = _bgr(accent)
-    glyph_colour = _lighten(accent, 0.24)
-    border = _lighten(accent, 0.1)
-    _glyph(cv2, canvas, category, glyph_colour)
+    white = (255, 255, 255)
+    _glyph(cv2, canvas, category, white, command=str(command))
 
-    # A readable consonant code under the category mark.
-    letters = _code(command)
-    scale = 0.46 if len(letters) >= 3 else 0.58
+    # A small white identifier keeps every command icon distinct without
+    # introducing a second colour into the monochrome set.
+    letters = (_code(command) + digest[0].upper())[:4]
+    scale = 0.36 if len(letters) >= 4 else 0.46 if len(letters) == 3 else 0.58
     thickness = 1
-    (text_width, text_height), _ = cv2.getTextSize(letters, cv2.FONT_HERSHEY_DUPLEX, scale, thickness)
+    (text_width, _), _ = cv2.getTextSize(letters, cv2.FONT_HERSHEY_DUPLEX, scale, thickness)
     cv2.putText(
         canvas,
         letters,
         (max(10, 64 - text_width // 2), 108),
         cv2.FONT_HERSHEY_DUPLEX,
         scale,
-        (238, 242, 247),
+        white,
         thickness,
         cv2.LINE_AA,
     )
-    cv2.line(canvas, (44, 82), (84, 82), border, 2, cv2.LINE_AA)
 
     image = np.zeros((_SIZE, _SIZE, 4), dtype=np.uint8)
     image[:, :, :3] = canvas

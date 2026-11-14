@@ -38,7 +38,7 @@ class AppearanceCog(commands.Cog, name="Appearance"):
             ("MINIMAL", ON_OFF[cfg.minimal], True),
             ("NUMBERS", ON_OFF[cfg.numbers], True),
             ("ICONS", ON_OFF[cfg.icons], True),
-            ("PIPELINE", ON_OFF[cfg.pipeline], True),
+            ("TRACE", ON_OFF[cfg.pipeline], True),
             ("THUMBNAILS", ON_OFF[cfg.thumbnails], True),
             ("CHECKS", cfg.checks, True),
             ("SUMMARY", ON_OFF[cfg.summary], True),
@@ -191,7 +191,7 @@ class AppearanceCog(commands.Cog, name="Appearance"):
             ],
         )
         embed.risk(24, name="RISK")
-        embed.steps(["Pipeline blocks appear only when the pipeline option is enabled."])
+        embed.steps(["Trace blocks appear only when the pipeline option is enabled."])
         embed.source("sample source")
         await embed.send(ctx)
 

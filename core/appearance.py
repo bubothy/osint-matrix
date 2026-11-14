@@ -24,6 +24,8 @@ CATEGORIES = (
     "discord",
     "vuln",
     "crypto",
+    "toolkit",
+    "generator",
     "admin",
     "error",
     "ok",

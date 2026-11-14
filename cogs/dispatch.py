@@ -15,6 +15,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from core import v2
 from core.embeds import notice
 from core.utils import clip, shlex_split
 
@@ -27,6 +28,7 @@ GROUPS: tuple[tuple[str, str, str], ...] = (
     ("discord", "discord", "Snowflakes, invites, accounts, guilds, webhooks and status."),
     ("vuln", "vuln", "CVEs, KEV, EPSS, CWE, malware metadata and reputation."),
     ("crypto", "crypto", "Bitcoin, Ethereum and Solana public ledger intelligence."),
+    ("tools", "toolkit", "Local encoders, hashes, address arithmetic and text utilities."),
 )
 
 
@@ -157,7 +159,7 @@ class Dispatch(commands.Cog, name="Slash"):
             value="Ask the operator to approve your Discord ID. Without approval no command executes.",
             inline=False,
         )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(view=v2.build_layout(embed), ephemeral=True)
 
     # ── dispatch ─────────────────────────────────────────────────────────
 
@@ -166,7 +168,9 @@ class Dispatch(commands.Cog, name="Slash"):
         recent = [stamp for stamp in self._stamps.get(interaction.user.id, []) if now - stamp < 10]
         if len(recent) >= 8:
             await interaction.response.send_message(
-                embed=notice("SLOW DOWN", "Eight slash lookups in ten seconds is the ceiling. Wait a moment.", category="error"),
+                view=v2.build_layout(
+                    notice("SLOW DOWN", "Eight slash lookups in ten seconds is the ceiling. Wait a moment.", category="error")
+                ),
                 ephemeral=True,
             )
             return
@@ -179,11 +183,13 @@ class Dispatch(commands.Cog, name="Slash"):
         command = self.bot.get_command(cleaned)
         if command is None:
             await interaction.followup.send(
-                embed=notice(
-                    "UNKNOWN COMMAND",
-                    f"No command named `{clip(cleaned, 60)}`.",
-                    category="error",
-                    fields=[("TIP", f"Use the autocomplete list or `/help`.", False)],
+                view=v2.build_layout(
+                    notice(
+                        "UNKNOWN COMMAND",
+                        f"No command named `{clip(cleaned, 60)}`.",
+                        category="error",
+                        fields=[("TIP", f"Use the autocomplete list or `/help`.", False)],
+                    )
                 ),
                 ephemeral=True,
             )
@@ -191,11 +197,13 @@ class Dispatch(commands.Cog, name="Slash"):
         if command.extras.get("category") != category:
             sibling = next((slug for slug, cat, _ in GROUPS if cat == command.extras.get("category")), "net")
             await interaction.followup.send(
-                embed=notice(
-                    "WRONG CATEGORY",
-                    f"`{command.name}` belongs to **{command.extras.get('category')}**, not `{category}`.",
-                    category="error",
-                    fields=[("USE INSTEAD", f"`/{sibling} command:{command.name} args:{clip(args or '<target>', 60)}`", False)],
+                view=v2.build_layout(
+                    notice(
+                        "WRONG CATEGORY",
+                        f"`{command.name}` belongs to **{command.extras.get('category')}**, not `{category}`.",
+                        category="error",
+                        fields=[("USE INSTEAD", f"`/{sibling} command:{command.name} args:{clip(args or '<target>', 60)}`", False)],
+                    )
                 ),
                 ephemeral=True,
             )
@@ -218,7 +226,9 @@ class Dispatch(commands.Cog, name="Slash"):
         except Exception as exc:  # noqa: BLE001 - rendered through the shared policy
             embed = self.bot.describe_error(exc, command=command.qualified_name, usage=command.usage)
             try:
-                await interaction.followup.send(embed=embed, ephemeral=True)
+                await interaction.followup.send(
+                    view=v2.build_layout(embed), ephemeral=True
+                )
             except discord.HTTPException:
                 pass
             return

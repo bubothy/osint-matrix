@@ -15,6 +15,7 @@ from core.utils import clip
 
 _EMOJI: dict[str, tuple[str, int]] = {}
 _SAFE = re.compile(r"[^a-z0-9_]+")
+_STYLE = "w2"
 
 
 def normalise(command: Any) -> str:
@@ -25,7 +26,7 @@ def name_for(command: Any) -> str:
     key = normalise(command)
     safe = _SAFE.sub("_", key).strip("_") or "cmd"
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:5]
-    return f"cmd_{safe[:20]}_{digest}"[:32]
+    return f"cmd_{_STYLE}_{safe[:17]}_{digest}"[:32]
 
 
 def register(command: Any, emoji: Any) -> None:

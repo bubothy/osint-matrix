@@ -20,7 +20,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import DATA_DIR, LOG_DIR, settings
-from core import appearance
+from core import appearance, v2
 from core.checks import prefix_allowed
 from core.embeds import PALETTE, denied_embed, error_embed, maintenance_embed, notice, respond
 from core.errors import (
@@ -47,6 +47,8 @@ COGS: tuple[str, ...] = (
     "cogs.discordint",
     "cogs.vuln",
     "cogs.crypto",
+    "cogs.toolkit",
+    "cogs.generator",
     "cogs.admin",
     "cogs.appearance",
     "cogs.dispatch",
@@ -166,7 +168,9 @@ class OsintBot(commands.Bot):
         if not allowed:
             embed = maintenance_embed() if reason == "maintenance" else denied_embed(interaction.user.id)
             try:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await interaction.response.send_message(
+                    view=v2.build_layout(embed), ephemeral=True
+                )
             except discord.HTTPException:
                 pass
             await self.store.audit(interaction.user.id, "denied_slash", str(interaction.command), reason)
@@ -174,7 +178,9 @@ class OsintBot(commands.Bot):
         if interaction.guild is None and not settings.allow_dms:
             try:
                 await interaction.response.send_message(
-                    embed=error_embed("GUILD ONLY", "Direct messages are disabled on this instance."),
+                    view=v2.build_layout(
+                        error_embed("GUILD ONLY", "Direct messages are disabled on this instance.")
+                    ),
                     ephemeral=True,
                 )
             except discord.HTTPException:
@@ -269,7 +275,10 @@ class OsintBot(commands.Bot):
             footer=utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
         )
         try:
-            await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+            await channel.send(
+                view=v2.build_layout(embed),
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
         except discord.HTTPException:
             pass
 
@@ -385,10 +394,11 @@ class OsintBot(commands.Bot):
         command = interaction.command.qualified_name if interaction.command else None
         embed = self.describe_error(error, command=command)
         try:
+            layout = v2.build_layout(embed)
             if interaction.response.is_done():
-                await interaction.followup.send(embed=embed, ephemeral=True)
+                await interaction.followup.send(view=layout, ephemeral=True)
             else:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await interaction.response.send_message(view=layout, ephemeral=True)
         except discord.HTTPException:
             LOG.exception("failed to deliver app command error")
 
