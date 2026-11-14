@@ -20,6 +20,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import DATA_DIR, LOG_DIR, settings
+from core import appearance
 from core.checks import prefix_allowed
 from core.embeds import PALETTE, denied_embed, error_embed, maintenance_embed, notice, respond
 from core.errors import (
@@ -47,6 +48,7 @@ COGS: tuple[str, ...] = (
     "cogs.vuln",
     "cogs.crypto",
     "cogs.admin",
+    "cogs.appearance",
     "cogs.dispatch",
 )
 
@@ -105,6 +107,7 @@ class OsintBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         self.store = Store(DATA_DIR / "osint.sqlite3")
+        await appearance.load(self.store)
         self.net = HTTPClient(settings.http_timeout, settings.cache_ttl)
         await self.net.start()
         self.launch_time = time.time()

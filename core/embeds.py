@@ -8,6 +8,7 @@ footer carrying the source, latency and requester.
 
 from __future__ import annotations
 
+import re
 import time
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
@@ -15,6 +16,7 @@ from urllib.parse import quote
 
 import discord
 
+from core import appearance
 from core.utils import bar, clip, is_ip, kv_block, normalize_host, risk_label, unique, utcnow
 
 # category -> (colour, glyph, label)
@@ -73,6 +75,34 @@ def _user_icon(ctx: Any) -> str | None:
         return None
 
 
+_FIELD_PREFIX = re.compile(r"^\d{2}\s{1,2}(?:▸\s+)?")
+
+
+def _field_label(index: int, name: Any) -> str:
+    """Render a field name using the current appearance settings."""
+    cfg = appearance.get()
+    label = _FIELD_PREFIX.sub("", str(name).strip())
+    if label.startswith("▸ "):
+        label = label[2:]
+    prefix = ""
+    if cfg.numbers:
+        prefix += f"{index:02d}  "
+    if cfg.icons:
+        prefix += "▸ "
+    return clip(prefix + label, 250)
+
+
+def _normalise_fields(embed: discord.Embed) -> None:
+    """Apply the current label style to fields added outside the builder."""
+    for index, field in enumerate(list(embed.fields), 1):
+        embed.set_field_at(
+            index - 1,
+            name=_field_label(index, field.name),
+            value=field.value,
+            inline=field.inline,
+        )
+
+
 class Intel:
     """Fluent builder for a detailed intelligence embed."""
 
@@ -95,17 +125,19 @@ class Intel:
         self.cached = False
         self._section = 0
 
+        cfg = appearance.get()
         colour, glyph, label = PALETTE.get(category, PALETTE["admin"])
-        self.glyph = glyph
+        self.glyph = glyph if cfg.icons else ""
         self.label = label
-        self.embed = discord.Embed(color=color or colour, timestamp=utcnow())
-        self.embed.set_author(
-            name=f"{glyph}  OSINT MATRIX  ·  {label}",
-            icon_url=_bot_icon(ctx),
-        )
-        title = command.upper()
+        self.embed = discord.Embed(color=color or appearance.colour(category, colour), timestamp=utcnow())
+        if cfg.author:
+            author = cfg.brand
+            if cfg.icons:
+                author = f"{glyph}  {author}"
+            self.embed.set_author(name=clip(f"{author}  ·  {label.title()}", 256), icon_url=_bot_icon(ctx))
+        title = command
         if self.target:
-            title += f"  ›  {clip(self.target, 140)}"
+            title = f"{command}  ·  {clip(self.target, 140)}"
         self.embed.title = clip(title, 250)
         if summary:
             self.embed.description = clip(summary, 4000)
@@ -115,12 +147,9 @@ class Intel:
     def field(self, name: str, value: Any, *, inline: bool = False) -> "Intel":
         if len(self.embed.fields) >= 24:
             return self
-        label = str(name).strip()
-        if label.startswith("▸ "):
-            label = label[2:]
         self._section += 1
         rendered = clip(value, 1024) if value not in (None, "") else "—"
-        self.embed.add_field(name=clip(f"{self._section:02d} ▸ {label}", 250), value=rendered, inline=inline)
+        self.embed.add_field(name=_field_label(self._section, name), value=rendered, inline=inline)
         return self
 
     def kv(self, name: str, pairs: Mapping[str, Any] | Sequence[tuple[str, Any]], *, inline: bool = True, lang: str = "ini") -> "Intel":
@@ -134,6 +163,8 @@ class Intel:
         return self.field(f"▸ {name}", f"```{lang}\n{body}\n```", inline=inline)
 
     def steps(self, items: Iterable[Any], *, name: str = "ANALYSIS PIPELINE", inline: bool = False) -> "Intel":
+        if name == "ANALYSIS PIPELINE" and not appearance.get().pipeline:
+            return self
         lines = [f"`{index:02d}` {clip(str(item), 190)}" for index, item in enumerate(items, 1)]
         return self.field(f"▸ {name}", "\n".join(lines) or "—", inline=inline)
 
@@ -149,10 +180,11 @@ class Intel:
             summary += f"  ·  **{failed} failed**"
         if unknown:
             summary += f"  ·  **{unknown} unknown**"
+        marks = CHECK_GLYPHS if appearance.get().checks == "emoji" else {True: "PASS", False: "FAIL", None: "N/A"}
         lines = []
         for state, label, detail in rows:
             suffix = f"  ·  {clip(detail, 150)}" if detail else ""
-            lines.append(f"{CHECK_GLYPHS.get(state, '➖')} **{clip(label, 60)}**{suffix}")
+            lines.append(f"`{marks.get(state, 'N/A')}` **{clip(label, 60)}**{suffix}")
         return self.field(f"▸ {name}", summary + "\n" + "\n".join(lines), inline=inline)
 
     def risk(self, score: float, *, name: str = "RISK INDEX", verdict: str | None = None, inline: bool = False) -> "Intel":
@@ -161,10 +193,11 @@ class Intel:
         tone = RISK_COLOURS.get(label.upper())
         if tone is not None:
             self.embed.color = tone
-        glyph = RISK_GLYPHS.get(label.upper(), "•")
+        glyph = RISK_GLYPHS.get(label.upper(), "") if appearance.get().icons else ""
+        tail = f"{glyph}  **{label}**" if glyph else f"**{label}**"
         return self.field(
             f"▸ {name}",
-            f"`{bar(score, width=16)}`  **{score}/100**  ·  {glyph} **{label}**",
+            f"`{bar(score, width=16)}`  **{score}/100**  ·  {tail}",
             inline=inline,
         )
 
@@ -198,6 +231,8 @@ class Intel:
 
     def _auto_thumbnail(self) -> None:
         """Give web/domain dossiers a favicon when a command did not set one."""
+        if not appearance.get().thumbnails:
+            return
         if self.embed.thumbnail.url or not self.target or self.category not in {"web", "domain"}:
             return
         host = normalize_host(self.target)
@@ -209,6 +244,7 @@ class Intel:
             pass
 
     def finish(self, ctx: Any = None, *, source: str | None = None, elapsed_ms: float | None = None, extra: str | None = None) -> discord.Embed:
+        cfg = appearance.get()
         ctx = ctx if ctx is not None else self.ctx
         if source:
             self.source(source)
@@ -220,18 +256,25 @@ class Intel:
                 parts.append(str(ctx.author))
             except Exception:  # noqa: BLE001 - cosmetic only
                 pass
-        if self.command:
-            parts.append(self.command)
-        if self.embed.fields:
-            parts.append(f"{len(self.embed.fields)} sections")
+        if not cfg.compact:
+            if self.command:
+                parts.append(self.command)
+            if self.embed.fields:
+                parts.append(f"{len(self.embed.fields)} sections")
         if self.sources:
-            parts.append("src " + " · ".join(str(item) for item in unique(self.sources)[:3]))
+            prefix = "via " if cfg.compact else "source "
+            parts.append(prefix + " · ".join(str(item) for item in unique(self.sources)[:3]))
         parts.append(f"{elapsed:.0f} ms")
         if self.cached:
             parts.append("cache hit")
         if extra:
             parts.append(extra)
-        parts.append("OSINT MATRIX")
+        if cfg.footer:
+            parts.append(cfg.footer)
+        elif not cfg.compact:
+            parts.append(cfg.brand)
+        if not parts:
+            parts.append(cfg.brand)
         self.embed.set_footer(text=clip("  •  ".join(parts), 2048), icon_url=_user_icon(ctx) if ctx else None)
         return self.embed
 
@@ -249,6 +292,7 @@ async def respond(
     files: list[discord.File] | None = None,
 ) -> discord.Message | None:
     """Reply correctly whether the invocation came from chat or an interaction."""
+    _normalise_fields(embed)
     kwargs: dict[str, Any] = {"embed": embed, "allowed_mentions": discord.AllowedMentions.none()}
     if view is not None:
         kwargs["view"] = view
@@ -273,23 +317,26 @@ def notice(
     fields: Sequence[tuple[str, Any, bool]] = (),
     footer: str | None = None,
 ) -> discord.Embed:
+    cfg = appearance.get()
     colour, glyph, label = PALETTE.get(category, PALETTE["admin"])
+    title_prefix = f"{glyph}  " if cfg.icons else ""
     embed = discord.Embed(
-        title=clip(f"{glyph}  {title}", 250),
+        title=clip(f"{title_prefix}{title}", 250),
         description=clip(description, 4000) or None,
-        color=colour,
+        color=appearance.colour(category, colour),
         timestamp=utcnow(),
     )
-    embed.set_author(name=f"{glyph}  OSINT MATRIX  ·  {label}")
+    if cfg.author:
+        author = f"{glyph}  {cfg.brand}" if cfg.icons else cfg.brand
+        embed.set_author(name=clip(author, 256))
     for index, (name, value, inline) in enumerate(fields, 1):
-        field_name = str(name).strip()
-        if field_name.startswith("▸ "):
-            field_name = field_name[2:]
-        embed.add_field(name=clip(f"{index:02d} ▸ {field_name}", 250), value=clip(value, 1024) or "—", inline=inline)
+        embed.add_field(name=_field_label(index, name), value=clip(value, 1024) or "—", inline=inline)
     if footer:
         embed.set_footer(text=clip(footer, 2048))
-    else:
-        embed.set_footer(text=clip(f"OSINT MATRIX  •  {label.title()}", 2048))
+    elif cfg.footer:
+        embed.set_footer(text=clip(cfg.footer, 2048))
+    elif not cfg.compact:
+        embed.set_footer(text=clip(cfg.brand, 2048))
     return embed
 
 
@@ -307,7 +354,7 @@ def error_embed(
     if hint:
         embed.add_field(name="▸ RESOLUTION", value=clip(hint, 1024), inline=False)
     if command:
-        embed.set_footer(text=clip(f"command: {command}  •  OSINT MATRIX", 2048))
+        embed.set_footer(text=clip(f"command: {command}  •  {appearance.get().brand}", 2048))
     return embed
 
 
@@ -321,7 +368,7 @@ def denied_embed(user_id: int) -> discord.Embed:
             ("YOUR ID", f"`{user_id}`", False),
             ("HOW TO REQUEST ACCESS", "Send your ID to the operator of this bot. They can authorise you with the `approve` command.", False),
         ],
-        footer="OSINT MATRIX  •  private deployment",
+        footer=f"{appearance.get().brand}  •  private deployment",
     )
 
 
@@ -330,7 +377,7 @@ def maintenance_embed() -> discord.Embed:
         "MAINTENANCE MODE",
         "The operator has locked this instance to owners only. Try again once maintenance ends.",
         category="error",
-        footer="OSINT MATRIX  •  maintenance",
+        footer=f"{appearance.get().brand}  •  maintenance",
     )
 
 
@@ -348,10 +395,7 @@ def paginate(
         embed = base.copy()
         start = len(embed.fields) + 1
         for offset, (name, value) in enumerate(group, start):
-            field_name = str(name).strip()
-            if field_name.startswith("▸ "):
-                field_name = field_name[2:]
-            embed.add_field(name=clip(f"{offset:02d} ▸ {field_name}", 250), value=clip(value, 1024) or "—", inline=False)
+            embed.add_field(name=_field_label(offset, name), value=clip(value, 1024) or "—", inline=False)
         suffix = title_suffix.format(page=page_index, total=len(groups))
         embed.title = clip(f"{base.title or ''}{suffix}", 250)
         pages.append(embed)

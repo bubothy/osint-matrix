@@ -8,7 +8,7 @@ ledger data.
 - **117 intelligence commands** across eight categories, plus **18 operator commands**.
 - **Prefix commands** (default `.`) and **slash shortcuts** (`/net`, `/domain`, `/web`, `/identity`, `/social`, `/discord`, `/vuln`, `/crypto`) in servers, bot DMs and group DMs.
 - **Private by design**: only owners and explicitly approved Discord IDs can run anything.
-- **Detailed embeds**: numbered data sections, dynamic risk accents, pass/fail check summaries, automatic favicons on web/domain dossiers, and a source/latency/section footer.
+- **Readable embeds**: compact data panes, optional risk accents, pass/fail checks, and a clean source/latency footer. Operators can switch themes, colors and layout with `.appearance`.
 - **Runs on a Windows laptop** with Python only. No Linux, Docker, WSL or cloud account required.
 
 > **Responsible use.** This is a research and defensive-security tool. Query only
@@ -105,7 +105,7 @@ copy .env.example .env
 | Audit | Every lookup is written to SQLite and, if `LOG_CHANNEL_ID` is set, mirrored to that channel |
 
 Admin commands: `approve`, `revoke`, `approvals`, `audit`, `prefix`, `maintenance`,
-`reload`, `sync`, `stats`, `sources`, `apikeys`, `botinvite`, `about`, `shutdown`.
+`appearance`, `reload`, `sync`, `stats`, `sources`, `apikeys`, `botinvite`, `about`, `shutdown`.
 
 `approve` is owners-only, so a compromised approved account cannot widen access.
 
@@ -121,6 +121,34 @@ Then run `.sync` as owner, or restart the bot. Guild copies update instantly;
 the global copy can take up to an hour to appear in DMs. In a group DM, add the
 OSINT app as a member and run `/help` or `/net`. Access control still applies:
 unapproved users are denied before any lookup runs.
+
+### Appearance
+
+The default style is deliberately plain: no numbered sections, no pipeline
+block, and no emoji status markers. Owners can change it without editing code:
+
+```text
+.appearance                              show the current settings
+.appearance theme clean|classic|mono|neon
+.appearance set brand "My Intel Bot"
+.appearance set footer "internal use only"
+.appearance set numbers on|off
+.appearance set icons on|off
+.appearance set pipeline on|off
+.appearance set thumbnails on|off
+.appearance set checks text|emoji
+.appearance set author on|off
+.appearance set compact on|off
+.appearance color network #4A90E2
+.appearance color all #4A90E2
+.appearance color network reset
+.appearance preview
+.appearance reset
+```
+
+`clean` is the default, `classic` restores numbered sections and pipeline
+steps, `mono` removes the author line and uses a slate accent, and `neon`
+restores the vivid full-detail look. Settings persist in `data/osint.sqlite3`.
 
 ---
 
