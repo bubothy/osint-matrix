@@ -15,7 +15,7 @@ from core.utils import clip
 
 _EMOJI: dict[str, tuple[str, int]] = {}
 _SAFE = re.compile(r"[^a-z0-9_]+")
-_STYLE = "w2"
+_STYLE = "w3"
 
 
 def normalise(command: Any) -> str:

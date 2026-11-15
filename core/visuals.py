@@ -2,7 +2,7 @@
 
 OpenCV is imported lazily so the bot still starts if the wheel is unavailable;
 the first command that needs an icon pays the import cost. Icons are generated
-from the command name and category, so every command gets a stable, unique
+from the command name and category, so every command gets a stable, icon-only
 badge without shipping a folder of image assets.
 """
 
@@ -37,17 +37,6 @@ def _lighten(colour: int, amount: float = 0.2) -> tuple[int, int, int]:
         max(0, min(255, int(green * (1.0 - amount) + 255 * amount))),
         max(0, min(255, int(red * (1.0 - amount) + 255 * amount))),
     )
-
-
-def _code(command: str) -> str:
-    letters = ''.join(character for character in str(command).upper() if character.isalnum())
-    if len(letters) <= 3:
-        return letters or '?'
-    consonants = ''.join(character for character in letters if character not in 'AEIOU')
-    if len(consonants) >= 3:
-        return consonants[:3]
-    candidate = (letters[0] + consonants[:2])[:3]
-    return (candidate + ''.join(character for character in letters if character not in candidate))[:3]
 
 
 def _mask(size: int, radius: int) -> Any:
@@ -283,24 +272,26 @@ def icon_png(command: str, category: str = "admin", accent: int = _ACCENT) -> by
     mask = _mask(_SIZE, 26)
 
     white = (255, 255, 255)
-    _glyph(cv2, canvas, category, white, command=str(command))
+    glyph = np.zeros((_SIZE, _SIZE, 3), dtype=np.uint8)
+    _glyph(cv2, glyph, category, white, command=str(command))
 
-    # A small white identifier keeps every command icon distinct without
-    # introducing a second colour into the monochrome set.
-    letters = (_code(command) + digest[0].upper())[:4]
-    scale = 0.36 if len(letters) >= 4 else 0.46 if len(letters) == 3 else 0.58
-    thickness = 1
-    (text_width, _), _ = cv2.getTextSize(letters, cv2.FONT_HERSHEY_DUPLEX, scale, thickness)
-    cv2.putText(
-        canvas,
-        letters,
-        (max(10, 64 - text_width // 2), 108),
-        cv2.FONT_HERSHEY_DUPLEX,
-        scale,
-        white,
-        thickness,
-        cv2.LINE_AA,
-    )
+    # Crop the glyph, then scale it up to fill the tile. The old tiny command
+    # codes are intentionally gone: the art is now only a symbol.
+    points = np.where(glyph.max(axis=2) > 0)
+    if points[0].size:
+        y0, y1 = int(points[0].min()), int(points[0].max())
+        x0, x1 = int(points[1].min()), int(points[1].max())
+        crop = glyph[y0 : y1 + 1, x0 : x1 + 1]
+        height, width = crop.shape[:2]
+        target = 100.0
+        scale = target / max(height, width)
+        new_size = (max(1, int(round(width * scale))), max(1, int(round(height * scale))))
+        crop = cv2.resize(crop, new_size, interpolation=cv2.INTER_CUBIC)
+        top = (canvas.shape[0] - crop.shape[0]) // 2
+        left = (canvas.shape[1] - crop.shape[1]) // 2
+        region = canvas[top : top + crop.shape[0], left : left + crop.shape[1]]
+        mask_glyph = crop.max(axis=2) > 10
+        region[mask_glyph] = crop[mask_glyph]
 
     image = np.zeros((_SIZE, _SIZE, 4), dtype=np.uint8)
     image[:, :, :3] = canvas

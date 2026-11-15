@@ -265,7 +265,7 @@ async def mycmd(self, ctx, target: str = None):
     await embed.send(ctx)
 ```
 
-Categories are wired into `COGS` in `bot.py` and `GROUPS` in `cogs/dispatch.py`. Generator operations live under the `gen` group: `.gen email`, `.gen password 32`, `.gen uuid` and similar. The toolkit covers encoders, hashes, JSON, CIDR arithmetic, HTTP metadata, dates, numbers, colours and text transforms.
+Categories are wired into `COGS` in `bot.py` and `GROUPS` in `cogs/dispatch.py`. Generator operations live under the `gen` group: `.gen email`, `.gen password 32`, `.gen uuid` and similar. The toolkit covers encoders, hashes, JSON, CIDR arithmetic, HTTP metadata, dates, numbers, colours and text transforms. The complete new-command catalog is in [NEW-COMMANDS.md](NEW-COMMANDS.md).
 
 ---
 
