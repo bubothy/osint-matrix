@@ -207,10 +207,14 @@ class AutoUpdater:
         return env
 
     async def _git(self, *args: str, timeout: float = 60.0) -> str:
+        # Wispbyte leaves a 63-byte .git worktree pointer in the project root.
+        # Running git there makes even ``ls-remote`` try to open that stale
+        # worktree, so every command runs from a neutral directory instead.
+        cwd = tempfile.gettempdir()
         process = await asyncio.create_subprocess_exec(
             "git",
             *args,
-            cwd=str(self.config.root),
+            cwd=cwd,
             env=self._git_env(),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
