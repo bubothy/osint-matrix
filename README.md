@@ -350,7 +350,27 @@ your allow-list).
 
 ---
 
-## 10. Licence and attribution
+## 10. Wispbyte hosting and live updates
+
+The live instance runs from the `wispbyte` branch. Wispbyte pulls that branch
+when the server starts, and the running bot polls it every 60 seconds. A new
+commit is cloned, checked for syntax errors, installed and activated with a
+self-restart. `.env`, `data/`, `logs/` and `.local/` are never replaced by an
+update.
+
+Put the Discord credentials in `/home/container/.env` (Files → root → `.env`):
+
+```ini
+DISCORD_TOKEN=your-bot-token-here
+OWNER_IDS=your-discord-user-id
+```
+
+`OWNER_IDS` accepts a comma-separated list. Never put the token in the startup
+command, the repository or a GitHub commit.
+
+---
+
+## 11. Licence and attribution
 
 Runs on [discord.py](https://github.com/Rapptz/discord.py) (MIT). All data
 remains the property of the upstream provider; this project only reads public
