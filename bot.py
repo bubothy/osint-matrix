@@ -21,6 +21,7 @@ from discord.ext import commands
 
 from config import DATA_DIR, LOG_DIR, settings
 from core import access, appearance, v2
+from core.autoupdate import AutoUpdater
 from core.checks import prefix_allowed
 from core.embeds import PALETTE, denied_embed, error_embed, maintenance_embed, notice, respond
 from core.errors import (
@@ -115,6 +116,7 @@ class OsintBot(commands.Bot):
         self.prefix_cache: dict[int, str] = {}
         self.command_errors: int = 0
         self._emoji_task: asyncio.Task[None] | None = None
+        self.updater: AutoUpdater | None = None
 
     # ── lifecycle ────────────────────────────────────────────────────────
 
@@ -142,6 +144,12 @@ class OsintBot(commands.Bot):
         self.add_check(self._global_check)
         self.tree.interaction_check = self._tree_check
         await self.sync_commands(verbose=False)
+        try:
+            self.updater = AutoUpdater(self)
+            self.updater.start()
+        except Exception:  # noqa: BLE001 - an update watcher must not block boot
+            LOG.exception("auto-update watcher failed to start")
+            self.updater = None
 
     async def sync_emojis(self) -> None:
         """Create or fetch the application-owned badge for every command."""
@@ -154,6 +162,8 @@ class OsintBot(commands.Bot):
             LOG.exception("command badge sync failed")
 
     async def close(self) -> None:
+        if self.updater is not None:
+            await self.updater.stop()
         if self._emoji_task is not None and not self._emoji_task.done():
             self._emoji_task.cancel()
         try:
