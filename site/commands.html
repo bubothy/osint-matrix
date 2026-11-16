@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command index · 0SWALD</title>
+<meta name="description" content="Every 0SWALD command, generated from the source: search by name, alias or purpose across twelve categories, and open any command for its aliases and neighbours.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/v4.css">
+</head>
+<body data-page="commands">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">0S</span> 0SWALD <span class="brand-sub">index</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="navLinks">Menu</button>
+    <nav class="nav-links" id="navLinks" aria-label="Primary">
+      <a href="index.html" data-page="index">Overview</a>
+      <a href="commands.html" data-page="commands">Commands</a>
+      <a href="embeds.html" data-page="embeds">Embed studio</a>
+      <a href="access.html" data-page="access">Access</a>
+      <a href="docs.html" data-page="docs">Docs</a>
+      <a class="nav-cta" href="docs.html#deploy">Deploy</a>
+    </nav>
+    <div class="nav-progress" aria-hidden="true"><span></span></div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="page-hero">
+    <div class="wrap">
+      <span class="eyebrow">Generated from the source</span>
+      <h1 class="display">All 380 <em>commands.</em></h1>
+      <p class="lede">Every command the bot registers — vpncheck included — with its purpose, usage and every alias it answers to. The list is written by <code>tools/build_catalog.py</code>, so it matches the code rather than a hand-kept page.</p>
+      <dl class="hero-stats">
+        <div class="stat"><dt>COMMANDS</dt><dd data-stat="commands">0</dd><span class="unit">top-level</span></div>
+        <div class="stat"><dt>CALLABLE NAMES</dt><dd data-stat="routes">0</dd><span class="unit">incl. aliases</span></div>
+        <div class="stat"><dt>ALIASES</dt><dd data-stat="aliases">0</dd><span class="unit">short forms</span></div>
+        <div class="stat"><dt>CATEGORIES</dt><dd>12</dd><span class="unit">network to craft</span></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="page-section" style="padding-top:44px">
+    <div class="wrap">
+      <div class="index-layout">
+        <aside class="index-rail" id="cmdRail" aria-label="Command categories"></aside>
+
+        <div>
+          <div class="toolbar">
+            <label class="search">
+              <span>/</span>
+              <input id="cmdSearch" type="search" placeholder="search name, alias, purpose or usage" aria-label="Search commands" spellcheck="false">
+            </label>
+            <span class="result-count" id="cmdCount">—</span>
+            <select class="select" id="cmdPerPage" style="width:auto" aria-label="Commands per page">
+              <option value="24">24 per page</option>
+              <option value="36">36 per page</option>
+              <option value="60">60 per page</option>
+              <option value="120">120 per page</option>
+            </select>
+          </div>
+
+          <div class="cmd-grid" id="cmdGrid" aria-live="polite"></div>
+          <div class="pager" id="cmdPager"></div>
+
+          <p class="section-note" style="margin-top:26px;font-size:12.5px">
+            Click a command to open it: every alias it answers to, its usage and the commands beside it. The same names work as slash subcommands.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html"><span class="brand-mark">0S</span> 0SWALD</a>
+        <p class="footer-note">A private Discord bot for lookups on public data. No breach data, no credential access, no harassment.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Console</h4>
+        <a href="index.html">Overview</a>
+        <a href="embeds.html">Embed studio</a>
+        <a href="access.html">Access console</a>
+        <a href="docs.html">Operating notes</a>
+      </div>
+      <div class="footer-col">
+        <h4>Reference</h4>
+        <a href="docs.html#commands">Command sources</a>
+        <a href="docs.html#limits">Limits</a>
+        <a href="docs.html#policy">Responsible use</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>0SWALD · private build</span>
+      <span>Static console · no telemetry</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/commands.js"></script>
+<script src="assets/command-drawer.js"></script>
+<script src="assets/site.js"></script>
+<script src="assets/commands-page.js"></script>
+</body>
+</html>

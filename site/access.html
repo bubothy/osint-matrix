@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Access console · 0SWALD</title>
+<meta name="description" content="Configure who may use the instance: approval, maintenance, DMs, audit channel, dispatch ceiling and sniper polling. Export one line and apply it in Discord.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/v4.css">
+</head>
+<body data-page="access">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">0S</span> 0SWALD <span class="brand-sub">/ access</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="navLinks">Menu</button>
+    <nav class="nav-links" id="navLinks" aria-label="Primary">
+      <a href="index.html" data-page="index">Overview</a>
+      <a href="commands.html" data-page="commands">Commands</a>
+      <a href="embeds.html" data-page="embeds">Embed studio</a>
+      <a href="access.html" data-page="access">Access</a>
+      <a href="docs.html" data-page="docs">Docs</a>
+      <a class="nav-cta" href="docs.html#deploy">Deploy</a>
+    </nav>
+    <div class="nav-progress" aria-hidden="true"><span></span></div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="page-hero">
+    <div class="wrap">
+      <span class="eyebrow"><span class="dot"></span> OPERATOR CONSOLE · OFFLINE BY DESIGN</span>
+      <h1 class="display" style="max-width:22ch">Access <span class="outline">settings.</span></h1>
+      <p class="lede">Access is one JSON document in the bot's store. This page edits a copy, shows what each kind of user would get, and produces an <strong>.accessimport</strong> command you paste into Discord. Nothing is sent from here.</p>
+      <div class="hero-actions">
+        <button class="btn" type="button" data-preset="locked">Locked down</button>
+        <button class="btn ghost" type="button" data-preset="hunt">Sniper heavy</button>
+        <button class="btn ghost" type="button" data-preset="open">Open instance</button>
+        <button class="btn ghost" type="button" data-preset="frozen">Maintenance</button>
+        <button class="btn ghost" type="button" data-preset="reset">Reset</button>
+      </div>
+      <p class="status-note" id="accessStatus" style="padding:14px 0 0">loading configuration…</p>
+    </div>
+  </section>
+
+  <section class="page-section" style="padding-top:20px">
+    <div class="wrap">
+      <div class="access-layout">
+        <form id="accessForm" class="studio-main" autocomplete="off">
+
+          <div class="plate">
+            <div class="plate-head"><span>01 / identity</span><span class="hint">how the instance presents itself</span></div>
+            <div class="plate-body row two" style="gap:16px">
+              <div>
+                <label class="field-label" for="f-brand">Brand</label>
+                <input class="input" id="f-brand" data-field="brand" maxlength="60" placeholder="0SWALD">
+                <div class="counter" data-counter="brand">0/60</div>
+              </div>
+              <div>
+                <label class="field-label" for="f-prefix">Text prefix</label>
+                <input class="input" id="f-prefix" data-field="prefix" maxlength="5" placeholder=".">
+                <div class="counter" data-counter="prefix">0/5</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="plate-head"><span>02 / gate</span><span class="hint">enforced by the check layer on every command</span></div>
+            <div class="plate-body" style="display:grid;gap:10px">
+              <div class="gate">
+                <div><h4>Approval required</h4><p>Only Discord IDs on the allow-list may run commands. Turning this off opens the instance to anyone who can see it.</p></div>
+                <label class="toggle"><input type="checkbox" data-field="approval_required"><span>on</span></label>
+              </div>
+              <div class="gate">
+                <div><h4>Maintenance lock</h4><p>Owners only. Approved users get your maintenance note instead of running commands.</p></div>
+                <label class="toggle"><input type="checkbox" data-field="maintenance"><span>on</span></label>
+              </div>
+              <div class="gate">
+                <div><h4>Allow direct messages</h4><p>Prefix and slash commands work in DMs. When off, commands only work in servers, so audit rows always name a server.</p></div>
+                <label class="toggle"><input type="checkbox" data-field="allow_dms"><span>on</span></label>
+              </div>
+              <div class="gate">
+                <div><h4>Audit feed</h4><p>Records lookups in the audit table and, if a channel ID is set, posts them there.</p></div>
+                <label class="toggle"><input type="checkbox" data-field="audit"><span>on</span></label>
+              </div>
+              <div style="margin-top:4px">
+                <label class="field-label" for="f-log">Log channel ID</label>
+                <input class="input" id="f-log" data-field="log_channel_id" inputmode="numeric" placeholder="123456789012345678">
+                <div class="counter" data-counter="log_channel_id">0/24</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="plate-head"><span>03 / limits</span><span class="hint">the ceiling on how hard one instance can be pushed</span></div>
+            <div class="plate-body row two" style="gap:16px">
+              <div>
+                <label class="field-label" for="f-rate">Dispatch ceiling (per window)</label>
+                <input class="input" id="f-rate" data-field="rate_limit_per_10s" type="number" min="1" max="30" step="1">
+                <div class="counter">1–30</div>
+              </div>
+              <div>
+                <label class="field-label" for="f-window">Window (seconds)</label>
+                <input class="input" id="f-window" data-field="cooldown_seconds" type="number" min="1" max="120" step="1">
+                <div class="counter">1–120</div>
+              </div>
+              <div>
+                <label class="field-label" for="f-interval">Sniper poll interval (seconds)</label>
+                <input class="input" id="f-interval" data-field="watch_interval" type="number" min="30" max="3600" step="5">
+                <div class="counter">floor 30 · 45+ recommended</div>
+              </div>
+              <div>
+                <label class="field-label" for="f-watches">Simultaneous watches</label>
+                <input class="input" id="f-watches" data-field="max_watches" type="number" min="1" max="25" step="1">
+                <div class="counter">1–25</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="plate-head"><span>04 / messages</span><span class="hint">what a refused user sees</span></div>
+            <div class="plate-body" style="display:grid;gap:14px">
+              <div>
+                <label class="field-label" for="f-maintenance">Maintenance note</label>
+                <textarea class="textarea" id="f-maintenance" data-field="maintenance_note" maxlength="320"></textarea>
+                <div class="counter" data-counter="maintenance_note">0/320</div>
+              </div>
+              <div>
+                <label class="field-label" for="f-denied">Denied note</label>
+                <textarea class="textarea" id="f-denied" data-field="denied_note" maxlength="320"></textarea>
+                <div class="counter" data-counter="denied_note">0/320</div>
+              </div>
+              <div>
+                <label class="field-label" for="f-notes">Private notes</label>
+                <textarea class="textarea" id="f-notes" data-field="notes" maxlength="600" placeholder="Reminders for the next operator: who is approved, why, and when to review."></textarea>
+                <div class="counter" data-counter="notes">0/600</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="plate-head"><span>05 / apply</span><span class="hint">one line, one command, no restart</span></div>
+            <div class="plate-body" style="display:grid;gap:12px">
+              <div>
+                <label class="field-label" for="accessExport">Raw export</label>
+                <textarea class="textarea mono" id="accessExport" readonly style="min-height:84px"></textarea>
+                <div class="counter">paste this into <code>.accessimport</code>, or keep it as a backup</div>
+              </div>
+              <div>
+                <label class="field-label" for="accessCommand">Generated command</label>
+                <textarea class="textarea mono" id="accessCommand" readonly style="min-height:104px"></textarea>
+                <div class="counter" id="accessCommandMeta">0 / 2000 characters</div>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <button class="btn small" type="button" id="accessCopyCommand">Copy command</button>
+                <button class="btn small ghost" type="button" id="accessCopyBlob">Copy export</button>
+                <button class="btn small ghost" type="button" id="accessDownload">Download .txt</button>
+              </div>
+              <p class="section-note" style="font-size:12.5px">Run it in the operator channel. The bot clamps every value to its allowed range, sets <code>updated_at</code>, copies the maintenance flag and the watch interval to the keys other cogs read, and reports which fields changed.</p>
+            </div>
+          </div>
+        </form>
+
+        <aside class="access-side">
+          <div class="plate">
+            <div class="plate-head"><span>decisions</span><span class="hint">live from this form</span></div>
+            <div class="plate-body" style="padding:0">
+              <table class="doc" style="margin:0">
+                <thead><tr><th>persona</th><th>outcome</th><th>allowed</th></tr></thead>
+                <tbody id="accessPreview"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="plate-head"><span>risk review</span><span class="hint">before you apply</span></div>
+            <div class="plate-body"><div class="risk-list" id="accessRisks"></div></div>
+          </div>
+
+          <div class="plate">
+            <div class="plate-head"><span>effective config</span><span class="hint">after normalisation</span></div>
+            <div class="plate-body" style="display:grid;gap:6px" id="accessSummary"></div>
+          </div>
+
+          <div class="plate">
+            <div class="plate-head"><span>import an export</span><span class="hint">from .accessexport</span></div>
+            <div class="plate-body" style="display:grid;gap:10px">
+              <textarea class="textarea mono" id="accessImport" placeholder="paste the export block from .accessexport" style="min-height:88px"></textarea>
+              <button class="btn small ghost" type="button" id="accessImportRun">Load into the form</button>
+              <p class="status-note" id="accessImportNote" style="padding:0;min-height:15px">Loading only fills the form; nothing is applied until the command is sent.</p>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="plate-head"><span>pairing key</span><span class="hint">local to this tab</span></div>
+            <div class="plate-body" style="display:grid;gap:10px">
+              <p class="section-note" style="font-size:12.5px;margin:0">Generate a key with <code>.accesskey rotate</code>. It is shown once in Discord and stored in SQLite; afterwards the bot only shows its fingerprint. This page keeps whatever you paste in <code>sessionStorage</code> and never sends it anywhere.</p>
+              <input class="input" id="accessKeyInput" placeholder="osx_…" spellcheck="false" autocomplete="off">
+              <div style="display:flex;gap:8px"><button class="btn small ghost" type="button" id="accessKeySave">Store in this tab</button><button class="btn small ghost" type="button" id="accessKeyClear">Clear</button></div>
+              <p class="status-note" id="accessKeyState" style="padding:0;min-height:15px">no key loaded</p>
+            </div>
+          </div>
+
+          <div class="plate">
+            <div class="plate-head"><span>how the check runs</span></div>
+            <div class="plate-body access-map">
+              <div class="access-tier owner"><h5>01 · owner</h5><p>Owners come from <code>OWNER_IDS</code>. They skip approval and maintenance, and cannot be locked out by the rate limiter.</p></div>
+              <div class="access-tier"><h5>02 · approved</h5><p>IDs in the allow-list table. Everything except owner commands, within the rate limit.</p></div>
+              <div class="access-tier"><h5>03 · refused</h5><p>Any other ID, or an approved ID while maintenance is on. Gets your note, no data, and an audit row.</p></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html"><span class="brand-mark">0S</span> 0SWALD</a>
+        <p class="footer-note">The console mirrors <code>core/access.py</code>. If a field is missing here, the bot does not enforce it; read the module before assuming behaviour.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Console</h4>
+        <a href="index.html">Overview</a>
+        <a href="commands.html">Command index</a>
+        <a href="embeds.html">Embed studio</a>
+        <a href="docs.html">Operating notes</a>
+      </div>
+      <div class="footer-col">
+        <h4>Access commands</h4>
+        <a href="commands.html?q=access">.accesspanel</a>
+        <a href="commands.html?q=accesskey">.accesskey</a>
+        <a href="commands.html?q=accessset">.accessset</a>
+        <a href="commands.html?q=accessimport">.accessimport</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>0SWALD · private build</span>
+      <span>Static console · no telemetry</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+<script src="assets/access.js"></script>
+</body>
+</html>

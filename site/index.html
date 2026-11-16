@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0SWALD · private OSINT console for Discord</title>
+<meta name="description" content="A private Discord OSINT bot with 380 commands, vanity and username checks, VPN detection on every address report, paged results and an operator console.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/v4.css">
+</head>
+<body data-page="index">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">0S</span> 0SWALD <span class="brand-sub">console</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="navLinks">Menu</button>
+    <nav class="nav-links" id="navLinks" aria-label="Primary">
+      <a href="index.html" data-page="index">Overview</a>
+      <a href="commands.html" data-page="commands">Commands</a>
+      <a href="embeds.html" data-page="embeds">Embed studio</a>
+      <a href="access.html" data-page="access">Access</a>
+      <a href="docs.html" data-page="docs">Docs</a>
+      <a class="nav-cta" href="commands.html">Open index</a>
+    </nav>
+    <div class="nav-progress" aria-hidden="true"><span></span></div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow"><span class="dot"></span> Private instance · operator controlled</span>
+        <h1 class="display">Public records,<br><em>read carefully.</em></h1>
+        <p class="lede">A private Discord console for lookups on public data. 380 commands, one approved operator list, a VPN and proxy verdict on every address, and a source line on every result.</p>
+        <div class="hero-actions">
+          <a class="btn" href="commands.html">Browse the index</a>
+          <a class="btn ghost" href="#console">See a result</a>
+        </div>
+        <div class="hero-meta">
+          <div>Commands<b>380</b></div>
+          <div>Callable names<b>626</b></div>
+          <div>Aliases<b>246</b></div>
+          <div>Access<b>By approval</b></div>
+        </div>
+      </div>
+
+      <div class="hero-stage">
+        <div class="hero-badge one"><span class="bdot"></span> <b>vpncheck</b> live</div>
+        <div class="hero-badge two">Tor · VPN · proxy <b>scored</b></div>
+        <div class="console" data-terminal>
+          <div class="console-inner">
+            <div class="term-bar">
+              <div class="term-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+              <span class="term-title">oswald · demo shell</span>
+              <span class="spacer"></span>
+              <span class="state"><i></i> offline demo</span>
+            </div>
+            <div class="term-body" role="log" aria-live="polite" aria-label="Demo terminal output"></div>
+            <form class="term-input-row" autocomplete="off">
+              <span class="caret-label">›</span>
+              <input type="text" placeholder="try: vpncheck 1.1.1.1" aria-label="Demo command" spellcheck="false">
+              <button class="btn small" type="submit">Run</button>
+            </form>
+            <div class="term-suggest">
+              <button class="chip" type="button" data-run="vpncheck 1.1.1.1">vpncheck</button>
+              <button class="chip" type="button" data-run="vanitycheck matrix">vanitycheck</button>
+              <button class="chip" type="button" data-run="usernamecheck greed">usernamecheck</button>
+              <button class="chip" type="button" data-run="vanitywatch void hex null">vanitywatch</button>
+              <button class="chip" type="button" data-run="dns cloudflare.com">dns</button>
+              <button class="chip" type="button" data-run="help">help</button>
+            </div>
+          </div>
+        </div>
+        <div class="hero-proof">
+          <span><i></i> ipwho.is</span>
+          <span><i></i> ipquery.io</span>
+          <span><i></i> RIPEstat</span>
+          <span><i></i> crt.sh</span>
+          <span><i></i> Discord API</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track">
+      <span>vanitycheck</span><span>vanitywatch</span><span>vpncheck</span><span>usernamecheck</span><span>usernamesnipe</span><span>dns</span><span>certs</span><span>whois</span><span>asn</span><span>geo</span><span>myip</span><span>phishlure</span><span>jwt</span><span>robots</span><span>tls</span><span>portcheck</span><span>rdap</span><span>cve</span><span>hibp</span><span>telegram</span>
+      <span>vanitycheck</span><span>vanitywatch</span><span>vpncheck</span><span>usernamecheck</span><span>usernamesnipe</span><span>dns</span><span>certs</span><span>whois</span><span>asn</span><span>geo</span><span>myip</span><span>phishlure</span><span>jwt</span><span>robots</span><span>tls</span><span>portcheck</span><span>rdap</span><span>cve</span><span>hibp</span><span>telegram</span>
+    </div>
+  </div>
+
+  <section class="page-section" id="console">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="section-index">01 — The result</div>
+          <h2>A report that shows its work.</h2>
+        </div>
+        <p class="section-note">Named sections, paired fields, an explicit verdict and a footer that names the sources. Long results page on section boundaries, so a record never splits across pages.</p>
+      </div>
+
+      <div class="plate">
+        <div class="plate-head"><span>vpncheck · 1.1.1.1</span><span class="hint">live demo · 6 fields</span></div>
+        <div class="plate-body">
+          <div class="tool-preview" style="margin:0;border:0;background:transparent;padding:0;font-size:11.5px">
+            <div class="row"><span>Classification</span><b>Datacenter or cloud</b></div>
+            <div class="row"><span>Confidence</span><b>88%</b></div>
+            <div class="row"><span>Signals</span><b>hosting · no VPN · no Tor</b></div>
+            <div class="row"><span>Provider</span><b>Cloudflare, Inc.</b></div>
+            <div class="row"><span>Exposure index</span><b>55 / 100</b></div>
+            <div class="row"><span>Sources</span><b>ipquery.io · ip-api.com</b></div>
+            <div class="bar"><i></i></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bento" style="margin-top:14px">
+        <article class="tile">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></div>
+          <span class="kicker">Layout</span>
+          <h3>Sections, not soup</h3>
+          <p>Every command returns named blocks — geography, network, anonymity, reverse DNS — with the header repeated on each page.</p>
+        </article>
+        <article class="tile">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><path d="M12 3l7 4v6c0 4-3 6-7 8-4-2-7-4-7-8V7l7-4z"/></svg></div>
+          <span class="kicker">Anonymity</span>
+          <h3>VPN, proxy, Tor</h3>
+          <p>Address checks merge two independent risk models, label the provider and score exposure. Cloud ranges are reported as hosting, not as evasion.</p>
+        </article>
+        <article class="tile">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M8 6V4h8v2"/></svg></div>
+          <span class="kicker">Provenance</span>
+          <h3>Sources on every page</h3>
+          <p>The footer names the registry, resolver or index behind each value, and locally computed results say so.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" id="capability">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="section-index">02 — Coverage</div>
+          <h2>Six kinds of question.</h2>
+        </div>
+        <p class="section-note">Public data only. No breach dumps, no private accounts, no credential testing — and no automation of anything that needs a human decision.</p>
+      </div>
+
+      <div class="bento">
+        <article class="tile wide">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 4 3 12 0 16"/></svg></div>
+          <span class="kicker">01 / Invites and handles</span>
+          <h3>Vanity, invites and handles</h3>
+          <p>Resolve invite links and bare codes, read server metadata, then watch up to eight codes on an interval. Handles are checked across seven platforms with a score and three usable alternates.</p>
+          <div class="tag-row"><span class="tag">vanitycheck</span><span class="tag">vanitywatch</span><span class="tag">vanitysnipe</span><span class="tag">usernamecheck</span><span class="tag">usernamesnipe</span></div>
+        </article>
+        <article class="tile">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><path d="M12 3v18M5 8l7-5 7 5"/></svg></div>
+          <span class="kicker">02 / Network</span>
+          <h3>Network and domain</h3>
+          <p>DNS, certificate transparency, headers, redirect chains and ASN context, normalised into blocks instead of raw tool output.</p>
+        </article>
+        <article class="tile">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 9h16M8 13h4"/></svg></div>
+          <span class="kicker">03 / Web</span>
+          <h3>Web and identity pivots</h3>
+          <p>Metadata, robots, sitemaps, technology hints and social pivots, each with a confidence note and the next thing worth checking.</p>
+        </article>
+        <article class="tile">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><path d="M6 4h9l3 3v13H6z"/><path d="M9 10h6M9 14h6"/></svg></div>
+          <span class="kicker">04 / Craft</span>
+          <h3>Payload craft</h3>
+          <p>Forty craft commands for marking documents, decoding transport layers and building test payloads for defensive work.</p>
+        </article>
+        <article class="tile">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><path d="M4 18V6M4 18h16"/><path d="M8 14l3-4 3 3 3-5"/></svg></div>
+          <span class="kicker">05 / Vuln</span>
+          <h3>Vulnerability context</h3>
+          <p>CVEs with EPSS, KEV status, CWE context and severity maths, plus URL and file reputation where a key is configured.</p>
+        </article>
+        <article class="tile">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><path d="M12 4v8l5 3"/><circle cx="12" cy="12" r="8"/></svg></div>
+          <span class="kicker">06 / Limits</span>
+          <h3>Rate limits, not guesswork</h3>
+          <p>Per-user ceilings, watch slots, cache windows and audit rows are configured in one place and enforced on every entry point.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" id="index">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="section-index">03 — Command index</div>
+          <h2>Three hundred and eighty ways in.</h2>
+        </div>
+        <p class="section-note">Open any command for every alias it answers to and the commands beside it. The catalogue is generated from the source by <code>tools/build_catalog.py</code>.</p>
+      </div>
+
+      <div class="stat-band" style="margin-bottom:18px">
+        <div class="stat"><dt>Commands</dt><dd data-count="380">380</dd><span class="unit">registered</span></div>
+        <div class="stat"><dt>Callable names</dt><dd data-count="626">626</dd><span class="unit">with aliases</span></div>
+        <div class="stat"><dt>Aliases</dt><dd data-count="246">246</dd><span class="unit">short forms</span></div>
+        <div class="stat"><dt>Categories</dt><dd data-count="12">12</dd><span class="unit">network to system</span></div>
+      </div>
+
+      <div class="explorer">
+        <div class="cat-column" id="homeCategories" aria-label="Command categories"></div>
+        <div class="featured" id="homeFeatured" aria-label="Selected commands"></div>
+      </div>
+
+      <p style="margin-top:22px"><a class="arrow-link" href="commands.html">Open the full index</a></p>
+    </div>
+  </section>
+
+  <section class="page-section" id="tools">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="section-index">04 — Operator tools</div>
+          <h2>Two pages do the quiet work.</h2>
+        </div>
+        <p class="section-note">The studio composes webhook messages; the access console edits the gate and generates the line that applies it. Neither talks to the network.</p>
+      </div>
+
+      <div class="tool-grid">
+        <article class="tool-card">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 9h16"/></svg></div>
+          <h3>Embed studio</h3>
+          <p>Up to three embeds, markdown preview, reorderable fields, five templates and a validator that quotes Discord's limits. Export JSON, a webhook call or plain text.</p>
+          <div class="tool-preview">
+            <div class="row"><span>01 / message</span><b>content + 3 embeds</b></div>
+            <div class="row"><span>validator</span><b>limits quoted</b></div>
+            <div class="row"><span>export</span><span class="pill">json · curl · txt</span></div>
+            <div class="bar"><i></i></div>
+          </div>
+          <p style="margin-top:20px;margin-bottom:0"><a class="arrow-link" href="embeds.html">Open the studio</a></p>
+        </article>
+        <article class="tool-card">
+          <div class="tile-icon"><svg viewBox="0 0 24 24"><path d="M12 3l7 4v6c0 4-3 6-7 8-4-2-7-4-7-8V7l7-4z"/><path d="M9 12l2 2 4-4"/></svg></div>
+          <h3>Access console</h3>
+          <p>Approval, maintenance, DMs, audit channel and rate limits in one form, with a live preview of what each persona gets and a single generated line to apply.</p>
+          <div class="tool-preview">
+            <div class="row"><span>owner</span><b>always allowed</b></div>
+            <div class="row"><span>approved</span><b>allowed</b></div>
+            <div class="row"><span>stranger</span><b>blocked</b></div>
+            <div class="bar"><i style="width:38%"></i></div>
+          </div>
+          <p style="margin-top:20px;margin-bottom:0"><a class="arrow-link" href="access.html">Open the console</a></p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" id="deploy">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="section-index">05 — Deploy</div>
+          <h2>Three steps, no build system.</h2>
+        </div>
+        <p class="section-note">The site is static and the bot is plain Python. Environment variables, limits, optional keys and the policy live in the docs.</p>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <span class="n">01</span>
+          <h3>Install</h3>
+          <p>Create a virtual environment, install the requirements and copy the sample environment file.</p>
+          <div class="cmd-usage">python -m venv .venv<br>pip install -r requirements.txt</div>
+        </div>
+        <div class="step">
+          <span class="n">02</span>
+          <h3>Configure</h3>
+          <p>Set the token and owner IDs, then tune the gate in the access console and apply the generated line.</p>
+          <div class="cmd-usage">.accesskey rotate<br>.accessimport &lt;export&gt;</div>
+        </div>
+        <div class="step">
+          <span class="n">03</span>
+          <h3>Sync and run</h3>
+          <p>Start the bot, run <code>.sync</code> once so Discord has the current tree, then approve the operators.</p>
+          <div class="cmd-usage">python bot.py<br>.sync · .approve &lt;user id&gt;</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <div class="wrap">
+      <span class="eyebrow"><span class="dot"></span> Ready when you are</span>
+      <h2>Every command, every alias, one index.</h2>
+      <p>Search 380 commands, open any one for its aliases and neighbours, and copy the invocation you need.</p>
+      <div class="hero-actions">
+        <a class="btn" href="commands.html">Open the command index</a>
+        <a class="btn ghost" href="docs.html">Read the operating notes</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html"><span class="brand-mark">0S</span> 0SWALD</a>
+        <p class="footer-note">A private Discord bot for lookups on public data. No breach data, no credential access, no harassment. The operator is responsible for every lookup made with it.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Console</h4>
+        <a href="commands.html">Command index</a>
+        <a href="embeds.html">Embed studio</a>
+        <a href="access.html">Access console</a>
+        <a href="docs.html">Operating notes</a>
+      </div>
+      <div class="footer-col">
+        <h4>Reference</h4>
+        <a href="docs.html#deploy">Deploy</a>
+        <a href="docs.html#anonymity">Anonymity checks</a>
+        <a href="docs.html#limits">Limits</a>
+        <a href="docs.html#policy">Responsible use</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>0SWALD · private build</span>
+      <span>Static console · no telemetry</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/commands.js"></script>
+<script src="assets/command-drawer.js"></script>
+<script src="assets/site.js"></script>
+<script src="assets/terminal.js"></script>
+<script src="assets/home.js"></script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operating notes · 0SWALD</title>
+<meta name="description" content="Install, configure and run the 0SWALD Discord bot: environment, project layout, report layout, access control, limits and responsible use.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/v4.css">
+</head>
+<body data-page="docs">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">0S</span> 0SWALD <span class="brand-sub">/ notes</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="navLinks">Menu</button>
+    <nav class="nav-links" id="navLinks" aria-label="Primary">
+      <a href="index.html" data-page="index">Overview</a>
+      <a href="commands.html" data-page="commands">Commands</a>
+      <a href="embeds.html" data-page="embeds">Embed studio</a>
+      <a href="access.html" data-page="access">Access</a>
+      <a href="docs.html" data-page="docs">Docs</a>
+      <a class="nav-cta" href="docs.html#deploy">Deploy</a>
+    </nav>
+    <div class="nav-progress" aria-hidden="true"><span></span></div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="page-hero">
+    <div class="wrap">
+      <span class="eyebrow"><span class="dot"></span> OPERATING NOTES · PLAIN PYTHON</span>
+      <h1 class="display" style="max-width:24ch">Operating <span class="outline">notes.</span></h1>
+      <p class="lede">The site has no build step. The bot is one entry point, a set of cogs, SQLite for state, and this folder of static pages.</p>
+    </div>
+  </section>
+
+  <section class="page-section" style="padding-top:16px">
+    <div class="wrap doc-grid">
+      <nav class="doc-nav" aria-label="Sections">
+        <a href="#deploy">Deploy</a>
+        <a href="#slash">Slash surface</a>
+        <a href="#layout" class="sub">Project layout</a>
+        <a href="#commands">Commands &amp; catalogue</a>
+        <a href="#report">Report layout</a>
+        <a href="#access">Access control</a>
+        <a href="#watch">Watchtower</a>
+        <a href="#anonymity">Anonymity checks</a>
+        <a href="#limits">Limits &amp; caching</a>
+        <a href="#keys">Optional API keys</a>
+        <a href="#policy">Responsible use</a>
+      </nav>
+
+      <article class="doc">
+        <h3 id="deploy">Deploy</h3>
+        <p>Python 3.11 or newer. The bot uses <code>discord.py</code> 2.5+ for container rendering, plus <code>aiohttp</code>, <code>python-dotenv</code>, <code>phonenumbers</code> and headless OpenCV.</p>
+        <pre>python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env             # then fill in the token
+python bot.py</pre>
+        <p>The minimum environment is two values. Everything else has a default.</p>
+        <table>
+          <thead><tr><th>Variable</th><th>Default</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>DISCORD_TOKEN</code></td><td>—</td><td>Bot token. Required.</td></tr>
+            <tr><td><code>OWNER_IDS</code></td><td>—</td><td>Comma-separated IDs. Required; these bypass approval and maintenance.</td></tr>
+            <tr><td><code>COMMAND_PREFIX</code></td><td><code>.</code></td><td>Prefix for text commands. The access console can narrow it further, not widen it beyond five characters.</td></tr>
+            <tr><td><code>GUILD_ID</code></td><td>unset</td><td>Guild whose stale slash-command copies are cleared on sync. Commands are registered once, globally; a guild copy makes them appear twice.</td></tr>
+            <tr><td><code>USER_INSTALL</code></td><td><code>false</code></td><td>Adds the user-install and private-channel contexts. Only enable it after turning on User Install in the Developer Portal, otherwise Discord rejects the sync.</td></tr>
+            <tr><td><code>LOG_CHANNEL_ID</code></td><td>unset</td><td>Fallback audit channel when the stored config does not name one.</td></tr>
+            <tr><td><code>ALLOW_DMS</code></td><td><code>true</code></td><td>Environment switch for DM commands. The stored config has to agree.</td></tr>
+            <tr><td><code>MAINTENANCE</code></td><td><code>false</code></td><td>Cold-start maintenance flag; the live value lives in the store.</td></tr>
+            <tr><td><code>CACHE_TTL</code></td><td><code>300</code></td><td>Seconds a network result stays warm.</td></tr>
+            <tr><td><code>MAX_CONCURRENCY</code></td><td><code>4</code></td><td>Outbound request ceiling.</td></tr>
+          </tbody>
+        </table>
+
+        <h3 id="slash">Slash surface</h3>
+        <p>Ten category wrappers — <code>/net</code>, <code>/domain</code>, <code>/web</code>, <code>/identity</code>, <code>/social</code>, <code>/discord</code>, <code>/vuln</code>, <code>/crypto</code>, <code>/craft</code>, <code>/tools</code> — take an autocompleted command name and the arguments you would type after the prefix. <code>/vpncheck address:</code> and <code>/ip address:</code> are direct commands, and owner-only <code>/sync</code> re-registers the tree and reports exactly what Discord accepted.</p>
+        <p>The tree is registered once, globally, and covers servers and bot DMs. Guild-scoped copies left by older builds are deleted on the next sync, because Discord lists global and guild registrations side by side. Group DMs and other private channels require the app's User Install context: enable it in the Developer Portal and set <code>USER_INSTALL=true</code>. A sync that is rejected for an unsupported context now names the failing scope and Discord's reason instead of failing silently.</p>
+
+        <div class="callout"><strong>Serve the site</strong>Static files, no build step: <code>python -m http.server 8000 --directory site</code>, then open <code>http://localhost:8000</code>. The pages load only their own assets. There is no analytics call, no external font and no telemetry.</div>
+
+        <h3 id="layout">Project layout</h3>
+        <pre>bot.py              client, checks, audit feed, error rendering
+config.py           environment loader and optional-key metadata
+core/
+  access.py         access configuration model, mirror, export/import
+  checks.py         approval / maintenance / prefix gate
+  v2.py             report containers and section pagination
+  embeds.py         report sections, index, sources
+  ui.py             pagination controls, section jump
+  net.py            HTTP client, cache, rate limiting
+cogs/
+  intel.py          core lookups
+  toolkit.py        utilities
+  arsenal.py        100 payload, web and network commands
+  watchtower.py     vanity + handle checks, snipers, batch watch
+  configpanel.py    access panel, pairing key, import/export
+  dispatch.py       slash commands and the rate limiter
+  admin.py          approvals, maintenance, audit
+site/               this console (static)
+tools/build_catalog.py  catalogue generator for the command index
+data/               SQLite store (created on first run)
+logs/               rotating log files</pre>
+
+        <h3 id="commands">Commands &amp; catalogue</h3>
+        <p>Commands are registered by cogs, and most of the arsenal lives in a table rather than as decorated functions. That would normally let the website drift, so <code>tools/build_catalog.py</code> parses the source without importing it and writes <code>site/assets/commands.js</code>.</p>
+        <pre>python tools/build_catalog.py
+# 380 commands · 626 callable names · 246 aliases</pre>
+        <p>The generator reads <code>@intel</code> and <code>@commands.command</code> decorators, the <code>gen</code> subcommands and the <code>_TOOLS</code> / <code>_ARSENAL</code> registries. Re-run it after adding or renaming anything; if a command is missing from the index, it is missing from the bot.</p>
+
+        <h3 id="report">Report layout</h3>
+        <p>Every lookup renders through <code>core/v2.py</code>. Four rules hold for all of them:</p>
+        <ul>
+          <li><strong>Sections are atomic.</strong> Pagination splits on section boundaries, never inside a section, so a page always ends with a complete record.</li>
+          <li><strong>Headers repeat.</strong> Each page carries the command, target and summary strip so a screenshot keeps its context.</li>
+          <li><strong>Budgets are fixed.</strong> At most 16 fields or 7,200 characters per page, with inline pairing for short values.</li>
+          <li><strong>Provenance is explicit.</strong> The footer lists sources, and locally computed results say so.</li>
+        </ul>
+        <p>Past nine sections a result gets an index field, and the paginator adds a section jump menu. The numeric buttons stay for small results.</p>
+
+        <h3 id="access">Access control</h3>
+        <p>Every entry point runs the same check: the prefix command guard and the slash tree guard both call <code>evaluate_access</code>. Order of evaluation:</p>
+        <ol>
+          <li>Is the caller an owner? Owners bypass approval and maintenance.</li>
+          <li>Is maintenance on? Refuse with the configured maintenance note.</li>
+          <li>Is approval required and the caller absent from the allow-list? Refuse with the denied note.</li>
+          <li>Is this a DM while DMs are disabled? Refuse.</li>
+          <li>Then the command's own checks run: usage, ownership and network access.</li>
+        </ol>
+        <p>The configuration lives in one JSON document in the key/value table. <code>core/access.py</code> normalises it, mirrors the maintenance flag and the watch interval to the keys other modules already read, and keeps a three-second cache so the hot path stays cheap.</p>
+        <div class="callout"><strong>Apply a config</strong>Use the <a href="access.html">access console</a> to generate the line, then <code>.accessimport &lt;export&gt;</code> in Discord. <code>.accessexport</code> produces the same block from the live bot; <code>.accessfields</code> lists what is settable.</div>
+
+        <h3 id="watch">Watchtower</h3>
+        <p>The snipers accept a bare code, a path or a full invite link, including the <code>?event=</code> form. Resolution unwraps base64-ish candidates and caches results for 30 seconds so a batch check does not hammer the invite endpoint.</p>
+        <table>
+          <thead><tr><th>Command</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>.vanitycheck</code></td><td>One invite: state, server, members, features, risk.</td></tr>
+            <tr><td><code>.vanitysnipe</code></td><td>Availability plus a claim checklist; never automates the claim itself.</td></tr>
+            <tr><td><code>.vanitywatch</code></td><td>Batch watch, up to the configured ceiling, one event per transition.</td></tr>
+            <tr><td><code>.usernamecheck</code></td><td>One handle across seven platforms, with a score line.</td></tr>
+            <tr><td><code>.usernamesnipe</code></td><td>Release plan and fallbacks; no automation.</td></tr>
+          </tbody>
+        </table>
+        <p>Polling interval is read from the stored config on every watch start, so changing it in the console applies to the next watch rather than requiring a restart. The floor is 30 seconds; 45 or more is recommended.</p>
+
+        <h3 id="anonymity">Anonymity checks</h3>
+        <p>Every address report carries a VPN / proxy / Tor verdict, and <code>.vpncheck</code> returns the classification on its own. Three sources are layered, and a positive flag from any of them survives the merge:</p>
+        <table>
+          <thead><tr><th>Layer</th><th>What it contributes</th><th>Key</th></tr></thead>
+          <tbody>
+            <tr><td><code>ipquery.io</code></td><td>Risk model: VPN, proxy, Tor, datacenter, mobile plus an aggregate score.</td><td>none</td></tr>
+            <tr><td><code>ip-api.com</code></td><td>Independent proxy and hosting classification, used as a cross-check.</td><td>none</td></tr>
+            <tr><td><code>ipapi.is</code></td><td>VPN provider attribution and abuser history.</td><td><code>IPAPI_IS_KEY</code></td></tr>
+          </tbody>
+        </table>
+        <p>Cloud and DNS ranges are reported as hosting, never as a proxy: a datacenter address is normal for crawlers and cloud hosts, so it is not treated as evidence of evasion. Private and reserved space is labelled as such instead of being classified. Results are cached for thirty minutes.</p>
+        <div class="callout"><strong>Reading the verdict</strong><code>.vpncheck 1.1.1.1</code> returns the classification, confidence, per-flag signals, owning network, risk model and an exposure score, rendered as a Components V2 verdict card with source buttons. A clean verdict means nothing was flagged by these sources, not that the visitor is a real person.</div>
+
+        <h3 id="limits">Limits &amp; caching</h3>
+        <ul>
+          <li>Eight slash lookups per ten seconds per user by default (the category wrappers share this bucket); the access console can raise or lower the ceiling and the window together.</li>
+          <li>Eight simultaneous watches by default, configurable up to 25; the watchtower refuses politely instead of dropping the oldest.</li>
+          <li>Network results are cached for <code>CACHE_TTL</code> seconds; invite resolution uses its own 30-second cache.</li>
+          <li>Report pages are bounded, so a large result never trips Discord's component ceiling.</li>
+        </ul>
+
+        <h3 id="keys">Optional API keys</h3>
+        <p>The core lookups work without any third-party key. These raise ceilings or add fields; each is read from the environment and never leaves the process.</p>
+        <table>
+          <thead><tr><th>Variable</th><th>Unlocks</th></tr></thead>
+          <tbody>
+            <tr><td><code>IPAPI_IS_KEY</code></td><td>VPN provider names and the full anonymity flag set. The layered check works keyless through ipquery.io and ip-api.com.</td></tr>
+            <tr><td><code>GITHUB_TOKEN</code></td><td>5,000 requests/hour and organisation metadata instead of 60.</td></tr>
+            <tr><td><code>HIBP_API_KEY</code></td><td>Full breach history per email; password checks work keyless via k-anonymity.</td></tr>
+            <tr><td><code>STEAM_API_KEY</code></td><td>Exact SteamID64 resolution and ban flags.</td></tr>
+            <tr><td><code>VIRUSTOTAL_API_KEY</code></td><td>Multi-engine reputation for domains, URLs, IPs and hashes.</td></tr>
+            <tr><td><code>SHODAN_API_KEY</code></td><td>Exposed-service banners.</td></tr>
+            <tr><td><code>ABUSEIPDB_API_KEY</code></td><td>Abuse confidence scores.</td></tr>
+            <tr><td><code>URLSCAN_API_KEY</code></td><td>Submitting scans; passive search needs no key.</td></tr>
+            <tr><td><code>NVD_API_KEY</code></td><td>50 CVE queries per 30 seconds instead of 5.</td></tr>
+            <tr><td><code>TWITCH_CLIENT_ID</code> + <code>TWITCH_CLIENT_SECRET</code></td><td>Account age, follower counts, ban status.</td></tr>
+          </tbody>
+        </table>
+        <p><code>.keys</code> reports which of these are configured, without printing any value.</p>
+
+        <h3 id="policy">Responsible use</h3>
+        <div class="callout"><strong>Hard rules</strong>The instance is for defensive research on public data. It will not fetch breach dumps, access private accounts, guess credentials or help harass anyone. Phishing commands score lookalikes; they never register a domain or send a message.</div>
+        <ul>
+          <li>Look up what you have a reason to look up, and keep the audit feed on.</li>
+          <li>Respect each source's terms and rate limits; the caches exist for that reason.</li>
+          <li>Handle availability and vanity claims manually. Automation breaks Discord's terms and usually the target server's too.</li>
+          <li>Approvals are per Discord ID. Review the list when someone leaves the team.</li>
+          <li>You are the operator: the audit rows are yours to answer for.</li>
+        </ul>
+
+        <p style="margin-top:34px"><a class="btn" href="access.html">Configure access</a> <a class="btn ghost" href="commands.html" style="margin-left:8px">Browse commands</a></p>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html"><span class="brand-mark">0S</span> 0SWALD</a>
+        <p class="footer-note">These notes describe the code in this repository. If the bot behaves differently, the code is current and this page is out of date.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Console</h4>
+        <a href="index.html">Overview</a>
+        <a href="commands.html">Command index</a>
+        <a href="embeds.html">Embed studio</a>
+        <a href="access.html">Access console</a>
+      </div>
+      <div class="footer-col">
+        <h4>Reference</h4>
+        <a href="#deploy">Deploy</a>
+        <a href="#report">Report layout</a>
+        <a href="#limits">Limits</a>
+        <a href="#policy">Responsible use</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>0SWALD · private build</span>
+      <span>Static console · no telemetry</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+</body>
+</html>
