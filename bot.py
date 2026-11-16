@@ -249,7 +249,11 @@ class OsintBot(commands.Bot):
             "at": utcnow().isoformat(timespec="seconds"),
         }
         try:
-            payload = [command.to_dict(self.tree) for command in self.tree.get_commands()]
+            payload = {
+                "commands": [command.to_dict(self.tree) for command in self.tree.get_commands()],
+                "contexts": self.tree.allowed_contexts.to_array(),
+                "installs": self.tree.allowed_installs.to_array(),
+            }
             fingerprint = hashlib.sha256(
                 json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str).encode()
             ).hexdigest()
